@@ -17,14 +17,12 @@ padding_value = [-1.0 for i in range(len([d_player_sequences[0][0]]))]
 padded_d_seq = tf.keras.preprocessing.sequence.pad_sequences(d_player_sequences,padding='post', value=padding_value, dtype='float32',maxlen = 90)
 masking_layer = tf.keras.layers.Masking(mask_value=-1)
 masked_d_seq = masking_layer(padded_d_seq)
+prev_clicks = 0
+o_x, o_y,d_x,d_y = [],[],[],[]
+los_x_arr,los_y_arr = [],[]
+o_marker_colors = ['rgb(200, 200, 255)']
+d_marker_colors = ['rgb(200, 255, 200)']
 
-marker_colors = ['rgb(200, 200, 255)']
-los_x_arr = []
-los_y_arr = []
-o_x = []
-o_y = []
-d_x = []
-d_y = []
 
 # define a function that generates x and y arrays based on user input
 def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x):
@@ -151,20 +149,29 @@ app.layout = html.Div([
                 id='interval-component',
                 interval=500,  # in milliseconds
                 n_intervals=0,
-                disabled = False
+                disabled = True
             )
     ])
 ])
 
 @app.callback(
     Output('interval-component', 'disabled'),
+    Output('interval-component', 'n_intervals'),
     [Input('play-button', 'n_clicks'),Input('interval-component', 'n_intervals')],
-    [State('interval-component', 'disabled')]
+    [State('interval-component','disabled')]
 )
-def start_stop_interval(n_clicks, n_intervals,disabled):
-    print(n_intervals)
-    n_intervals = 0
-    return not disabled
+def start_stop_interval(n_clicks,n_intervals,disabled):
+    global prev_clicks
+    if n_clicks > prev_clicks:
+        prev_clicks = n_clicks
+        return False,0
+    if not(disabled) and n_intervals > 18:
+        return True, 0
+    elif n_clicks > 0 and not(disabled):
+        prev_clicks = n_clicks
+        return False, n_intervals
+
+    return disabled,n_intervals
 
 @app.callback(
     Output('trajectory-graph', 'figure'),
@@ -173,34 +180,48 @@ def start_stop_interval(n_clicks, n_intervals,disabled):
      Input('seq-index', 'value'),
      Input('los-slider', 'value'),
      Input('y-slider','value'),
-     Input('play-button', 'n_clicks'),
+     #Input('play-button', 'n_clicks'),
      Input('interval-component', 'n_intervals')],    
-     [State('play-button', 'n_clicks')]
+    [State('interval-component','disabled')]
+
 )
-def update_figure(start_x, start_y,index,los_x,y_pos,n_clicks, n_intervals,prev_n_clicks):
-    if n_clicks > 0:
-        stop_interval = False
-        print(n_intervals)
-        #n_clicks = 0
-    
+def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
+    global o_x,o_y,d_x,d_y,los_x_arr,los_y_arr,o_marker_colors,d_marker_colors
+    if not(disabled):
+        seq_len = min(len(o_x),len(o_y),len(d_x),len(d_y))
+        current_index = n_intervals*5
+        if current_index < seq_len:
+            new_ox = o_x[:current_index]
+            new_oy = o_y[:current_index]
+            new_dx = d_x[:current_index]
+            new_dy = d_y[:current_index]
+            o_trace = go.Scattergl(x=new_ox, y=new_oy, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+            d_trace = go.Scattergl(x=new_dx, y=new_dy, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
+            los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
+            fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
+            return fig
+        else:
+            o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+            d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
+            los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
+            fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
+            return fig
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x)
     los_x_arr,los_y_arr = los(los_x)
-    marker_colors = ['rgb(200, 200, 255)']
+    o_marker_colors = ['rgb(200, 200, 255)']
+    d_marker_colors = ['rgb(200, 255, 200)']
     for i in range(1, len(o_x)):
-        red_value = int(marker_colors[i-1].split(',')[0].split('(')[1]) - 2
-        green_value = int(marker_colors[i-1].split(',')[1]) - 2
+        red_value = int(o_marker_colors[i-1].split(',')[0].split('(')[1]) - 2
+        green_value = int(o_marker_colors[i-1].split(',')[1]) - 2
         #blue_value = int(marker_colors[i-1].split(',')[2].split(')')[0]) + 10
-        marker_colors.append(f'rgb({red_value}, {green_value}, 255)')
-    o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
-
-    marker_colors = ['rgb(200, 255, 200)']
+        o_marker_colors.append(f'rgb({red_value}, {green_value}, 255)')
     for i in range(1, len(d_x)):
-        red_value = int(marker_colors[i-1].split(',')[0].split('(')[1]) - 2
+        red_value = int(d_marker_colors[i-1].split(',')[0].split('(')[1]) - 2
         #green_value = int(marker_colors[i-1].split(',')[1]) - 2
-        blue_value = int(marker_colors[i-1].split(',')[2].split(')')[0]) -2
-        marker_colors.append(f'rgb({red_value}, 255, {blue_value})')
-    d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
-
+        blue_value = int(d_marker_colors[i-1].split(',')[2].split(')')[0]) -2
+        d_marker_colors.append(f'rgb({red_value}, 255, {blue_value})')
+    o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+    d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
     los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
     fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
     return fig
