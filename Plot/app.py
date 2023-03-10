@@ -3,11 +3,20 @@ import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 import tensorflow as tf
 import numpy as np
+import json
 
 app = Dash(__name__)
 
 model = tf.keras.models.load_model('../Notebooks/LSTMModel2Layer.h5')
+
 o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
+sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
+
+
+with open('../Notebooks/player_pairs.json', 'r') as f:
+    player_pairs_str = json.load(f)
+    player_pairs = {tuple(key_str.split(',')): value for key_str, value in player_pairs_str.items()}
+
 o_padding_value = [-1.0 for i in range(len([o_player_sequences[0][0]]))]
 padded_o_seq = tf.keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
 masking_o_layer = tf.keras.layers.Masking(mask_value=-1)
@@ -151,6 +160,48 @@ app.layout = html.Div([
                 n_intervals=0,
                 disabled = True
             )
+    ]),
+    html.Div(children=[
+        html.Div(children=[
+            dcc.Graph(
+                id='plot1',
+                figure={
+                    'data': [{'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'Plot 1'}],
+                    'layout': {'title': 'Plot 1'}
+                }
+            ),
+            html.Button('Button 1', id='button1', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='plot2',
+                figure={
+                    'data': [{'x': [1, 2, 3], 'y': [1, 4, 3], 'type': 'bar', 'name': 'Plot 2'}],
+                    'layout': {'title': 'Plot 2'}
+                }
+            ),
+            html.Button('Button 2', id='button2', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='plot3',
+                figure={
+                    'data': [{'x': [1, 2, 3], 'y': [3, 2, 4], 'type': 'bar', 'name': 'Plot 3'}],
+                    'layout': {'title': 'Plot 3'}
+                }
+            ),
+            html.Button('Button 3', id='button3', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='plot4',
+                figure={
+                    'data': [{'x': [1, 2, 3], 'y': [2, 3, 1], 'type': 'bar', 'name': 'Plot 4'}],
+                    'layout': {'title': 'Plot 4'}
+                }
+            ),
+            html.Button('Button 4', id='button4', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'})
     ])
 ])
 
