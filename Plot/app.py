@@ -1,6 +1,6 @@
 from dash import Dash, html, dcc
 import plotly.graph_objects as go
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import tensorflow as tf
 import numpy as np
 
@@ -17,6 +17,14 @@ padding_value = [-1.0 for i in range(len([d_player_sequences[0][0]]))]
 padded_d_seq = tf.keras.preprocessing.sequence.pad_sequences(d_player_sequences,padding='post', value=padding_value, dtype='float32',maxlen = 90)
 masking_layer = tf.keras.layers.Masking(mask_value=-1)
 masked_d_seq = masking_layer(padded_d_seq)
+
+marker_colors = ['rgb(200, 200, 255)']
+los_x_arr = []
+los_y_arr = []
+o_x = []
+o_y = []
+d_x = []
+d_y = []
 
 # define a function that generates x and y arrays based on user input
 def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x):
@@ -56,6 +64,7 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x):
     predicted_sequence_y = [x[1]+start_y+d_start_y for x in predicted_sequence]
     predicted_sequence_x = predicted_sequence_x[0:o_sequence_len]
     predicted_sequence_y = predicted_sequence_y[0:o_sequence_len]
+
 
     z = np.polyfit(predicted_sequence_x, predicted_sequence_y, 3)
     f = np.poly1d(z)
@@ -136,9 +145,26 @@ app.layout = html.Div([
                             50: {'label': '50', 'style': {'color': '#f50'}},
                         }
                     )]
-            ,style={'display': 'inline-block', 'width': '5%'})
+            ,style={'display': 'inline-block', 'width': '5%'}),
+            html.Button(id='play-button', children='Play', n_clicks=0, style={'margin-left': '30px', 'font-size': '20px'}),
+            dcc.Interval(
+                id='interval-component',
+                interval=500,  # in milliseconds
+                n_intervals=0,
+                disabled = False
+            )
     ])
 ])
+
+@app.callback(
+    Output('interval-component', 'disabled'),
+    [Input('play-button', 'n_clicks'),Input('interval-component', 'n_intervals')],
+    [State('interval-component', 'disabled')]
+)
+def start_stop_interval(n_clicks, n_intervals,disabled):
+    print(n_intervals)
+    n_intervals = 0
+    return not disabled
 
 @app.callback(
     Output('trajectory-graph', 'figure'),
@@ -147,8 +173,16 @@ app.layout = html.Div([
      Input('seq-index', 'value'),
      Input('los-slider', 'value'),
      Input('y-slider','value'),
-     ])
-def update_figure(start_x, start_y,index,los_x,y_pos):
+     Input('play-button', 'n_clicks'),
+     Input('interval-component', 'n_intervals')],    
+     [State('play-button', 'n_clicks')]
+)
+def update_figure(start_x, start_y,index,los_x,y_pos,n_clicks, n_intervals,prev_n_clicks):
+    if n_clicks > 0:
+        stop_interval = False
+        print(n_intervals)
+        #n_clicks = 0
+    
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x)
     los_x_arr,los_y_arr = los(los_x)
     marker_colors = ['rgb(200, 200, 255)']
