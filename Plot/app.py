@@ -11,6 +11,19 @@ model = tf.keras.models.load_model('../Notebooks/LSTMModel2Layer.h5')
 
 o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
 sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
+# getting the ordered sequences from the clustering
+cluster_figures = []
+for i in range(len(sequences_ordered)):
+    current_index = sequences_ordered[i][0][1]
+    #print(current_index)
+    seq = o_player_sequences[current_index]
+    x = [x[0] for x in seq]
+    y = [x[1] for x in seq]    
+    o_trace = go.Scattergl(x=x, y=y, mode='markers', name=f'Cluster {i}')
+    fig = go.Figure(data=[o_trace], layout=go.Layout(title=f'Cluster {i} Sequence', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
+    cluster_figures.append(fig)
+
+
 
 
 with open('../Notebooks/player_pairs.json', 'r') as f:
@@ -31,6 +44,8 @@ o_x, o_y,d_x,d_y = [],[],[],[]
 los_x_arr,los_y_arr = [],[]
 o_marker_colors = ['rgb(200, 200, 255)']
 d_marker_colors = ['rgb(200, 255, 200)']
+
+
 
 
 # define a function that generates x and y arrays based on user input
@@ -164,43 +179,67 @@ app.layout = html.Div([
     html.Div(children=[
         html.Div(children=[
             dcc.Graph(
-                id='plot1',
-                figure={
-                    'data': [{'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'Plot 1'}],
-                    'layout': {'title': 'Plot 1'}
-                }
+                id='cluster-graph-1', figure=cluster_figures[0], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
             ),
             html.Button('Button 1', id='button1', n_clicks=0)
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='plot2',
-                figure={
-                    'data': [{'x': [1, 2, 3], 'y': [1, 4, 3], 'type': 'bar', 'name': 'Plot 2'}],
-                    'layout': {'title': 'Plot 2'}
-                }
+                id='cluster-graph-2', figure=cluster_figures[1], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
             ),
             html.Button('Button 2', id='button2', n_clicks=0)
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='plot3',
-                figure={
-                    'data': [{'x': [1, 2, 3], 'y': [3, 2, 4], 'type': 'bar', 'name': 'Plot 3'}],
-                    'layout': {'title': 'Plot 3'}
-                }
+                id='cluster-graph-3', figure=cluster_figures[2], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
             ),
             html.Button('Button 3', id='button3', n_clicks=0)
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='plot4',
-                figure={
-                    'data': [{'x': [1, 2, 3], 'y': [2, 3, 1], 'type': 'bar', 'name': 'Plot 4'}],
-                    'layout': {'title': 'Plot 4'}
-                }
+                id='cluster-graph-4', figure=cluster_figures[3], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
             ),
             html.Button('Button 4', id='button4', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+                html.Div(children=[
+            dcc.Graph(
+                id='cluster-graph-5', figure=cluster_figures[4], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
+            ),
+            html.Button('Button 5', id='button5', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='cluster-graph-6', figure=cluster_figures[5], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
+            ),
+            html.Button('Button 6', id='button6', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='cluster-graph-7', figure=cluster_figures[6], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
+            ),
+            html.Button('Button 7', id='button7', n_clicks=0)
+        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        html.Div(children=[
+            dcc.Graph(
+                id='cluster-graph-8', figure=cluster_figures[7], 
+                config={'displayModeBar': False, 'doubleClick': 'reset'},
+                clickData={'points': [{'customdata': 'Add Point'}]}
+            ),
+            html.Button('Button 8', id='button8', n_clicks=0)
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'})
     ])
 ])
