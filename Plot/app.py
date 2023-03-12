@@ -4,6 +4,11 @@ from dash.dependencies import Input, Output, State
 import tensorflow as tf
 import numpy as np
 import json
+import threading
+
+
+lock = threading.Lock()
+
 
 app = Dash(__name__)
 
@@ -12,16 +17,7 @@ model = tf.keras.models.load_model('../Notebooks/LSTMModel2Layer.h5')
 o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
 sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
 # getting the ordered sequences from the clustering
-cluster_figures = []
-for i in range(len(sequences_ordered)):
-    current_index = sequences_ordered[i][0][1]
-    #print(current_index)
-    seq = o_player_sequences[current_index]
-    x = [x[0] for x in seq]
-    y = [x[1] for x in seq]    
-    o_trace = go.Scattergl(x=x, y=y, mode='markers', name=f'Cluster {i}')
-    fig = go.Figure(data=[o_trace], layout=go.Layout(title=f'Cluster {i} Sequence', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
-    cluster_figures.append(fig)
+
 
 
 
@@ -55,7 +51,8 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x):
     index = int(index)
     if index<0:
         index = -1*index
-    o_seq = o_player_sequences[index]
+    with lock:
+        o_seq = o_player_sequences[index]
     expected_sequence = masked_d_seq[index]
     o_sequence_len = len(o_seq)
 
@@ -111,6 +108,7 @@ layout = go.Layout(title='Trajectory Plot', xaxis=dict(title='X'), yaxis=dict(ti
 fig = go.Figure(data=data, layout=layout)
 
 app.layout = html.Div([
+    html.Div(id="hidden-div", style={"display": "none"}),
     html.Div([
         html.Label('Defensive Start X'),
         dcc.Input(id='start-x', type='number', value=2)
@@ -179,7 +177,7 @@ app.layout = html.Div([
     html.Div(children=[
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-1', figure=cluster_figures[0], 
+                id='cluster-graph-1',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -187,7 +185,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-2', figure=cluster_figures[1], 
+                id='cluster-graph-2', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -195,7 +193,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-3', figure=cluster_figures[2], 
+                id='cluster-graph-3', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -203,7 +201,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-4', figure=cluster_figures[3], 
+                id='cluster-graph-4',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -211,7 +209,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
                 html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-5', figure=cluster_figures[4], 
+                id='cluster-graph-5', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -219,7 +217,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-6', figure=cluster_figures[5], 
+                id='cluster-graph-6',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -227,7 +225,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-7', figure=cluster_figures[6], 
+                id='cluster-graph-7', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -235,7 +233,7 @@ app.layout = html.Div([
         ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
         html.Div(children=[
             dcc.Graph(
-                id='cluster-graph-8', figure=cluster_figures[7], 
+                id='cluster-graph-8',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
@@ -315,6 +313,34 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
     los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
     fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
     return fig
+
+@app.callback(
+    Output('cluster-graph-1', 'figure'),
+    Output('cluster-graph-2', 'figure'),
+    Output('cluster-graph-3', 'figure'),
+    Output('cluster-graph-4', 'figure'),
+    Output('cluster-graph-5', 'figure'),
+    Output('cluster-graph-6', 'figure'),
+    Output('cluster-graph-7', 'figure'),
+    Output('cluster-graph-8', 'figure'),
+    [Input("hidden-div", "children")],
+    
+    )
+def update_figure(value):
+    cluster_figures = []
+    #print(f"Length of sequences ordered: {len(sequences_ordered)}")
+    for i in range(len(sequences_ordered)):
+        current_c_index = sequences_ordered[i][0][1]
+        #print(current_index)
+        seq = o_player_sequences[current_c_index]
+        c_x = [x[0] for x in seq]
+        c_y = [x[1] for x in seq]   
+        #print(f"Printing X and Y arrays for id: {current_index}") 
+        #print(f"X: {x}")
+        #print(f"Y: {y}",end="\n\n\n")
+        c_trace = go.Scatter(x=c_x, y=c_y, mode='markers', name=f'Cluster {i}')
+        cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Cluster {i} Sequence', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
+    return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7]
 
 if __name__ == '__main__':
     app.run_server(debug=True)
