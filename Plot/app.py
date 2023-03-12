@@ -17,21 +17,22 @@ model = tf.keras.models.load_model('../Notebooks/LSTMModel2Layer.h5')
 o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
 sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
 # getting the ordered sequences from the clustering
-
-
-
-
+o_player_sequences_id = np.load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True)
 
 with open('../Notebooks/player_pairs.json', 'r') as f:
     player_pairs_str = json.load(f)
     player_pairs = {tuple(key_str.split(',')): value for key_str, value in player_pairs_str.items()}
 
-o_padding_value = [-1.0 for i in range(len([o_player_sequences[0][0]]))]
+with open('../Notebooks/player_pair_ids.json', 'r') as f:
+    player_pair_ids_str = json.load(f)
+    player_pair_ids = {tuple(key_str.split(',')): value for key_str, value in player_pair_ids_str.items()}
+
+o_padding_value = [-1.0 for _ in range(len([o_player_sequences[0][0]]))]
 padded_o_seq = tf.keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
 masking_o_layer = tf.keras.layers.Masking(mask_value=-1)
 masked_o_seq = masking_o_layer(padded_o_seq)
 
-padding_value = [-1.0 for i in range(len([d_player_sequences[0][0]]))]
+padding_value = [-1.0 for _ in range(len([d_player_sequences[0][0]]))]
 padded_d_seq = tf.keras.preprocessing.sequence.pad_sequences(d_player_sequences,padding='post', value=padding_value, dtype='float32',maxlen = 90)
 masking_layer = tf.keras.layers.Masking(mask_value=-1)
 masked_d_seq = masking_layer(padded_d_seq)
@@ -40,6 +41,8 @@ o_x, o_y,d_x,d_y = [],[],[],[]
 los_x_arr,los_y_arr = [],[]
 o_marker_colors = ['rgb(200, 200, 255)']
 d_marker_colors = ['rgb(200, 255, 200)']
+cluster_options = [{'label': f'Cluster Center {i+1}', 'value': i} for i in range(8)]
+cluster_center_options = [{'label': f'Sequence {i+1}', 'value': i} for i in range(8)]
 
 
 
@@ -108,6 +111,7 @@ layout = go.Layout(title='Trajectory Plot', xaxis=dict(title='X'), yaxis=dict(ti
 fig = go.Figure(data=data, layout=layout)
 
 app.layout = html.Div([
+    html.H1(children='',id='plot-header'),
     html.Div(id="hidden-div", style={"display": "none"}),
     html.Div([
         html.Label('Defensive Start X'),
@@ -166,7 +170,7 @@ app.layout = html.Div([
                         }
                     )]
             ,style={'display': 'inline-block', 'width': '5%'}),
-            html.Button(id='play-button', children='Play', n_clicks=0, style={'margin-left': '30px', 'font-size': '20px'}),
+            html.Button(id='play-button', children='Play', n_clicks=0, style={'marginLeft': '30px', 'fontSize': '20px'}),
             dcc.Interval(
                 id='interval-component',
                 interval=500,  # in milliseconds
@@ -175,71 +179,78 @@ app.layout = html.Div([
             )
     ]),
     html.Div(children=[
+        html.H2('Please select a cluster center below to view sequences in the selected cluster.',id='cluster-header'),
+        dcc.Dropdown(
+            id='cluster-dropdown',
+            options=cluster_options,
+            value=None,
+            placeholder='Select a cluster center...'),
+        html.H2('Please select a sequence below to display on the trajectory plot.',id='seq-header'),
+        dcc.Dropdown(
+            id='cluster-center-dropdown',
+            options=cluster_center_options,
+            value=None,
+            placeholder='Select a sequence to display...'),
+        ]
+    ),
+    html.Div(id='cluster-div',children=[
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-1',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 1', id='button1', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center','position': 'relative'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-2', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 2', id='button2', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-3', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 3', id='button3', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-4',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 4', id='button4', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
                 html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-5', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 5', id='button5', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-6',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 6', id='button6', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-7', 
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 7', id='button7', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'}),
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'}),
         html.Div(children=[
             dcc.Graph(
                 id='cluster-graph-8',  
                 config={'displayModeBar': False, 'doubleClick': 'reset'},
                 clickData={'points': [{'customdata': 'Add Point'}]}
             ),
-            html.Button('Button 8', id='button8', n_clicks=0)
-        ], style={'display': 'inline-block', 'width': '24%', 'text-align': 'center'})
-    ])
+        ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'})
+    ],style={})
 ])
 
 @app.callback(
@@ -249,11 +260,12 @@ app.layout = html.Div([
     [State('interval-component','disabled')]
 )
 def start_stop_interval(n_clicks,n_intervals,disabled):
-    global prev_clicks
+    global prev_clicks,o_x,o_y,d_x,d_y
+    seq_len = min(len(o_x),len(o_y),len(d_x),len(d_y))
     if n_clicks > prev_clicks:
         prev_clicks = n_clicks
         return False,0
-    if not(disabled) and n_intervals > 18:
+    if not(disabled) and n_intervals*5 > seq_len:
         return True, 0
     elif n_clicks > 0 and not(disabled):
         prev_clicks = n_clicks
@@ -263,14 +275,15 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
 
 @app.callback(
     Output('trajectory-graph', 'figure'),
+    Output('plot-header','children'),
     [Input('start-x', 'value'),
      Input('start-y', 'value'),
      Input('seq-index', 'value'),
      Input('los-slider', 'value'),
      Input('y-slider','value'),
-     #Input('play-button', 'n_clicks'),
      Input('interval-component', 'n_intervals')],    
     [State('interval-component','disabled')]
+    
 
 )
 def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
@@ -293,7 +306,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
             d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
             los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
             fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
-            return fig
+            return fig,f"Viewing Plot for ID: {index} and corresponding Panda ID: {o_player_sequences_id[index]}"
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x)
     los_x_arr,los_y_arr = los(los_x)
     o_marker_colors = ['rgb(200, 200, 255)']
@@ -312,7 +325,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
     d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
     los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
     fig = go.Figure(data=[o_trace,d_trace,los_trace], layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120]), yaxis=dict(title='Y',range=[0,53.3]),legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom")))
-    return fig
+    return fig,f"Viewing Plot for ID: {index} and corresponding Panda ID: {o_player_sequences_id[index]}"
 
 @app.callback(
     Output('cluster-graph-1', 'figure'),
@@ -323,24 +336,53 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,disabled):
     Output('cluster-graph-6', 'figure'),
     Output('cluster-graph-7', 'figure'),
     Output('cluster-graph-8', 'figure'),
-    [Input("hidden-div", "children")],
-    
+    Output('cluster-header','style'),
+    Output('cluster-center-dropdown','style'),
+    Output('seq-header','style'),
+    [Input('cluster-dropdown','value')]
     )
-def update_figure(value):
+def update_cluster_figure(value):
     cluster_figures = []
-    #print(f"Length of sequences ordered: {len(sequences_ordered)}")
+    if value in range(8):
+        for i in range(8):
+            current_c_index = sequences_ordered[value][i][1]
+            seq = o_player_sequences[current_c_index]
+            c_x = [x[0] for x in seq]
+            c_y = [x[1] for x in seq]   
+            c_trace = go.Scatter(x=c_x, y=c_y, mode='markers', name=f'Sequence {i}')
+            cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Sequence {i}', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
+        return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{},{}
+
     for i in range(len(sequences_ordered)):
         current_c_index = sequences_ordered[i][0][1]
-        #print(current_index)
         seq = o_player_sequences[current_c_index]
         c_x = [x[0] for x in seq]
         c_y = [x[1] for x in seq]   
-        #print(f"Printing X and Y arrays for id: {current_index}") 
-        #print(f"X: {x}")
-        #print(f"Y: {y}",end="\n\n\n")
         c_trace = go.Scatter(x=c_x, y=c_y, mode='markers', name=f'Cluster {i}')
         cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Cluster {i} Sequence', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
-    return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7]
+    return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{'display':'none'},{'display':'none'}
+
+@app.callback(
+    Output('cluster-center-dropdown','value'),
+    [Input('cluster-dropdown','value')],
+)
+def reset_centerdrd(value_cluster):
+    return None
+
+@app.callback(
+    Output('seq-index', 'value'),
+    [Input('cluster-center-dropdown','value')],
+    State('cluster-dropdown','value'),
+    State('seq-index', 'value')
+)
+def set_cluster_seq(c_seq,cluster,index):
+    if cluster is not None and c_seq is not None:
+        return sequences_ordered[cluster][c_seq][1]
+    else:
+        return index
+
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
