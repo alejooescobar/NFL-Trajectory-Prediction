@@ -110,14 +110,14 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     predicted_sequence = predicted_sequence[0]
 
     if flip_x:
-        print(f"Flipping each coordinate around {los_x}")
-        predicted_sequence_x = [flipX(x[0]+(2*los_x-start_x),los_x)+d_start_x for x in predicted_sequence]
+        #print(f"Flipping each coordinate around {los_x}")
+        predicted_sequence_x = [flipX(x[0]+(2*los_x-(start_x+d_start_x)),los_x) for x in predicted_sequence]
         x = [flipX(x[0]+(2*los_x-start_x),los_x) for x in o_seq]
     else:
         predicted_sequence_x = [x[0]+start_x+d_start_x for x in predicted_sequence]
         x = [x[0]+start_x for x in o_seq]
     if flip_y:
-        predicted_sequence_y = [flipY(x[1]+(53.3-start_y),26.65)+d_start_y for x in predicted_sequence]
+        predicted_sequence_y = [flipY(x[1]+(53.3-(start_y+d_start_y)),26.65) for x in predicted_sequence]
         y = [flipY(x[1]+(53.3-start_y),26.65) for x in o_seq]
     else:
         predicted_sequence_y = [x[1]+start_y+d_start_y for x in predicted_sequence]
@@ -190,28 +190,13 @@ layout = go.Layout(title='Trajectory Plot', xaxis=dict(title='X'), yaxis=dict(ti
 fig = go.Figure(data=data, layout=layout)
 
 app.layout = html.Div([
-    html.H1(children='',id='plot-header'),
     html.Div(id="hidden-div", style={"display": "none"}),
-    html.Div([
-    dcc.Tabs(id='tabs', value='seq-selection', children=[
-        dcc.Tab(label='Sequence Selection', value='seq-selection'),
-        dcc.Tab(label='Cluster Selection', value='cluster-selection'),
-        dcc.Tab(label='Play Selection', value='play-selection'),
-        ]),
-    ]),
-    html.Div([
-        dcc.Tabs(id='plot-tabs', value='play-isolated', children=[
-            dcc.Tab(label='Isolate Single Pair', value='play-isolated'),
-            dcc.Tab(label='Full Play', value='play-full'),
-            #dcc.Tab(label='Play Selection', value='play-selection'),
-        ]) 
-    ]),
     dbc.Container([
+        html.H1(children='',id='plot-header'),
         html.H1(
             children="My Dash Application",
             className="center-align"
         ),
-        # Add a description section
         html.Div(
             className="card-panel",
             children=[
@@ -229,14 +214,20 @@ app.layout = html.Div([
     id = "info-component",
     fluid = True,
     className = "py-3"),
-    dbc.Container([
-        dbc.Row([html.Label('Defensive Start X'), 
-        dcc.Input(id='start-x', type='number', value=2), 
-        html.Label('Defensive Start Y'),
-        dcc.Input(id='start-y', type='number', value=0),
-        html.Label('Sequence Index'),
-        dcc.Input(id='seq-index', type='number', value=0)]
-        )
+
+    html.Div([
+    dcc.Tabs(id='tabs', value='seq-selection', children=[
+        dcc.Tab(label='Sequence Selection', value='seq-selection'),
+        dcc.Tab(label='Cluster Selection', value='cluster-selection'),
+        dcc.Tab(label='Play Selection', value='play-selection'),
+        ]),
+    ]),
+    html.Div([
+        dcc.Tabs(id='plot-tabs', value='play-isolated', children=[
+            dcc.Tab(label='Isolate Single Pair', value='play-isolated'),
+            dcc.Tab(label='Full Play', value='play-full'),
+            #dcc.Tab(label='Play Selection', value='play-selection'),
+        ]) 
     ]),
     html.Div([
             html.Div([
@@ -285,8 +276,6 @@ app.layout = html.Div([
                         verticalHeight = 700
                     )]
             ,style={'display': 'inline-block', 'width': '5%','marginBottom':'3%'}),
-            html.Button(id='play-button', children='Play', n_clicks=0, style={'marginLeft': '30px', 'fontSize': '20px'}),
-            dcc.RadioItems(['show-original', 'hide-original'], 'hide-original',id="original-radio"),
             dcc.Interval(
                 id='interval-component',
                 interval=500,  # in milliseconds
@@ -294,6 +283,46 @@ app.layout = html.Div([
                 disabled = True
             )
     ]),
+    html.Div([
+        dbc.Button(id='play-button', children='View Play in Real Time', n_clicks=0)
+    ],className = "d-grid gap-2 col-6 mx-auto my-4"),
+    dbc.Container([
+        dbc.Form(
+            dbc.Row(
+                [
+                    dbc.Label('Defensive Start X',width = 'auto'),
+                    dbc.Col(
+                        dcc.Slider(id="start-x", min=0, max=10, step=0.5, value=0)
+                    ),
+                    dbc.Label('Defensive Start Y', width="auto"),
+                    dbc.Col(
+                        dcc.Slider(id="start-y", min=-5, max=5, step=0.5, value=0)
+                    )
+                ]
+            )
+        ,className="my-4"),
+        dbc.Form(
+            dbc.Row(
+                [
+                    dbc.Label('Sequence Index',width = 'auto'),
+                    dbc.Col(
+                        dbc.Input(id='seq-index', type='number', value=0,placeholder="Please select an integer to display a sequence on the Trajectory Plot.")
+                    ),
+                    dbc.Label('Original Sequence Toggle', width="auto"),
+                    dbc.Col(
+                    dbc.Checklist(
+                        options=[
+                            {"label": "Show Original", "value": True},
+                        ],
+                        value=[True],
+                        id="original-switch",
+                        switch=True,
+                        )
+                    )
+                ]
+            )
+        ,className= "my-4")
+    ],fluid=True),
     html.Div(id = "play-mode",children=[
                 dcc.Dropdown(
                 id='game-dropdown',
@@ -388,7 +417,8 @@ app.layout = html.Div([
                 ], style={'display': 'inline-block', 'width': '24%', 'textAlign': 'center'})
             ],style={})
         ]
-    )
+    ),
+    html.Div(id="extra-space",children=[],style={"height":"400px"})
 ])
 
 @app.callback(
@@ -421,14 +451,13 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
      Input('y-slider','value'),
      Input('interval-component', 'n_intervals'),
      Input('plot-tabs','value'),
-     Input('original-radio','value')],    
+     Input('original-switch','value')],    
     [State('interval-component','disabled')]
 )
-def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,original,disabled):
+def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show_original,disabled):
     if index is None:
         return dash.no_update,dash.no_update
     global o_x,o_y,d_x,d_y,off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,los_x_arr,los_y_arr,o_marker_colors,d_marker_colors
-    show_original = (original == 'show-original')
     if not(disabled):
         seq_len = min(len(o_x),len(d_x),len(off_seq_x)//10,len(def_seq_x)//10,len(oo_x),len(oo_y))
         current_index = n_intervals*5
@@ -580,6 +609,17 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
             )
         )
     return fig,f"Viewing Plot for ID: {index}"
+
+
+@app.callback(
+    Output('play-button','children'),
+    [Input('interval-component', 'n_intervals'),
+    Input('interval-component','disabled')]
+)
+def update_button_text(n_intervals,disabled):
+    if disabled:
+        return "View Play in Real Time"
+    return f"{n_intervals*0.5} s"
 
 @app.callback(
     Output('cluster-graph-1', 'figure'),
