@@ -6,10 +6,11 @@ import numpy as np
 import json
 import pandas as pd
 import ast
+import dash
+import dash_bootstrap_components as dbc
 
 
-
-app = Dash(__name__,suppress_callback_exceptions=True)
+app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 model = tf.keras.models.load_model('../Notebooks/LSTMModel2Layer.h5')
 
@@ -135,14 +136,16 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
 
 def generate_play_trajectories(index,los_x):
     play_key = o_player_sequences_id[index] # game play o_player d_player
-    #print(play_key)
+    #print(f"play key {play_key}",end="\n\n")
     o_player_id = int(play_key[2])
     d_player_id = int(play_key[3])
     #print(f"o_player_id: {o_player_id} d_player_id: {d_player_id}")
     teams = valid_plays[(valid_plays["gameId"] == play_key[0])&(valid_plays["playId"] == play_key[1])]
-    off_team = teams.at[0,'possessionTeam']
-    def_team = teams.at[0,'defensiveTeam']
-    actual_los = teams.at[0,'absoluteYardlineNumber']
+    #print(teams,end="\n\n")
+    off_team = teams.iloc[0]['possessionTeam']
+    def_team = teams.iloc[0]['defensiveTeam']
+    actual_los = teams.iloc[0]['absoluteYardlineNumber']
+    #print(off_team)
     #print(actual_los)
     off_play = all_trajectory_dict[(play_key[0],play_key[1],off_team)]
     def_play = all_trajectory_dict[(play_key[0],play_key[1],def_team)]
@@ -175,6 +178,7 @@ def generate_play_trajectories(index,los_x):
     return off_seq_x,off_seq_y,def_seq_x,def_seq_y,original_o_player_x,original_o_player_y,original_d_player_x,original_d_player_y,flip_x,flip_y
 
 
+
 def los(x):
     x = [x,x]
     y = [0,53.3]
@@ -202,17 +206,37 @@ app.layout = html.Div([
             #dcc.Tab(label='Play Selection', value='play-selection'),
         ]) 
     ]),
-    html.Div([
-        html.Label('Defensive Start X'),
-        dcc.Input(id='start-x', type='number', value=2)
-    ]),
-    html.Div([
+    dbc.Container([
+        html.H1(
+            children="My Dash Application",
+            className="center-align"
+        ),
+        # Add a description section
+        html.Div(
+            className="card-panel",
+            children=[
+                html.H3(
+                    children="Description",
+                    className="blue-grey-text text-darken-4"
+                ),
+                html.P(
+                    children="This is a sample Dash application. It demonstrates how to create a simple layout using Dash HTML components.",
+                    className="grey-text text-darken-3 flow-text"
+                )
+            ]
+        )
+    ],
+    id = "info-component",
+    fluid = True,
+    className = "py-3"),
+    dbc.Container([
+        dbc.Row([html.Label('Defensive Start X'), 
+        dcc.Input(id='start-x', type='number', value=2), 
         html.Label('Defensive Start Y'),
-        dcc.Input(id='start-y', type='number', value=0)
-    ]),
-    html.Div([
+        dcc.Input(id='start-y', type='number', value=0),
         html.Label('Sequence Index'),
-        dcc.Input(id='seq-index', type='number', value=0)
+        dcc.Input(id='seq-index', type='number', value=0)]
+        )
     ]),
     html.Div([
             html.Div([
@@ -401,6 +425,8 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
     [State('interval-component','disabled')]
 )
 def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,original,disabled):
+    if index is None:
+        return dash.no_update,dash.no_update
     global o_x,o_y,d_x,d_y,off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,los_x_arr,los_y_arr,o_marker_colors,d_marker_colors
     show_original = (original == 'show-original')
     if not(disabled):
@@ -450,7 +476,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
             o_trace = go.Scattergl(x=new_ox, y=new_oy, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
             d_trace = go.Scattergl(x=new_dx, y=new_dy, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
             los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
-            data = []
+            data = [los_trace]
             if plot_type == 'play-full':
                 data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
             if show_original:
@@ -473,7 +499,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
                     ]
                 )
             )
-            return fig,f"Viewing Plot for ID: {index} and corresponding Panda ID: {o_player_sequences_id[index]}"
+            return fig,f"Viewing Plot for ID: {index}"
         else:
             oo_trace = go.Scattergl(x=oo_x, y=oo_y, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
             od_trace = go.Scattergl(x=od_x, y=od_y, mode='markers', marker=dict(size=10, color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1') 
@@ -482,7 +508,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
             o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
             d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
             los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
-            data = []
+            data = [los_trace]
             if plot_type == 'play-full':
                 data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
             if show_original:
@@ -505,7 +531,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
                 ]
             )
         )
-            return fig,f"Viewing Plot for ID: {index} and corresponding Panda ID: {o_player_sequences_id[index]}"
+            return fig,f"Viewing Plot for ID: {index}"
     
     off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,flip_x,flip_y = generate_play_trajectories(index,los_x)
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x,flip_x,flip_y)
@@ -530,7 +556,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
     o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
     d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
     los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
-    data = []
+    data = [los_trace]
     if plot_type == 'play-full':
         data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
     if show_original:
@@ -553,7 +579,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,orig
                 ]
             )
         )
-    return fig,f"Viewing Plot for ID: {index} and corresponding Panda ID: {o_player_sequences_id[index]}"
+    return fig,f"Viewing Plot for ID: {index}"
 
 @app.callback(
     Output('cluster-graph-1', 'figure'),
