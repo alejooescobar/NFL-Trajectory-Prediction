@@ -3,11 +3,3 @@ Notebooks/trajectories.npy
 Notebooks/KerasTuner
 Notebooks/trajectory_dict_keys.csv
 Notebooks/all_trajectory_dict.json
-Notebooks/all_trajectory_dict_demo.json
-Notebooks/o_player_sequences_id_demo.npy
-Notebooks/player_pairs_demo.json
-Notebooks/player_pair_ids_demo.json
-Notebooks/all_trajectory_dict_demo.json
-Notebooks/trajectories_demo.npy
-Notebooks/trajectory_dict_keys_demo.csv
-Notebooks/sequences_ordered_demo.npy
