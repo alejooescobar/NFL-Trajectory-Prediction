@@ -16,25 +16,25 @@ my_dir = os.path.dirname(__file__)
 
 model = tf.keras.models.load_model(f'{my_dir}/../Notebooks/LSTMModel2Layer.h5')
 
-o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
-sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
+o_player_sequences, d_player_sequences = np.load(f'{my_dir}/../Notebooks/trajectories_demo.npy',allow_pickle=True)
+sequences_ordered = np.load(f'{my_dir}/../Notebooks/sequences_ordered_demo.npy',allow_pickle=True)
 # getting the ordered sequences from the clustering
-o_player_sequences_id = np.load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True)
+o_player_sequences_id = np.load(f'{my_dir}/../Notebooks/o_player_sequences_id_demo.npy',allow_pickle=True)
 
-with open('../Notebooks/player_pairs.json', 'r') as f:
+with open(f'{my_dir}/../Notebooks/player_pairs_demo.json', 'r') as f:
     player_pairs_str = json.load(f)
     player_pairs = {ast.literal_eval(key_str): value for key_str, value in player_pairs_str.items()}
 
-with open('../Notebooks/player_pair_ids.json', 'r') as f:
+with open(f'{my_dir}/../Notebooks/player_pair_ids_demo.json', 'r') as f:
     player_pair_ids_str = json.load(f)
     player_pair_ids = {ast.literal_eval(key_str): value for key_str, value in player_pair_ids_str.items()}
 
 player_pair_ids = {k:v for k,v in player_pair_ids.items() if v}
 
 trajectory_dict_keys = pd.DataFrame(list(player_pair_ids.keys()),columns=["gameId","playId"])
-bdb_games = pd.read_csv("../NFLData/games.csv")
-bdb_plays = pd.read_csv("../NFLData/plays.csv")
-bdb_players = pd.read_csv("../NFLData/players.csv")
+bdb_games = pd.read_csv(f'{my_dir}/../NFLData/games.csv')
+bdb_plays = pd.read_csv(f'{my_dir}/../NFLData/plays.csv')
+bdb_players = pd.read_csv(f'{my_dir}/../NFLData/players.csv')
 valid_games = trajectory_dict_keys[["gameId"]].drop_duplicates()
 valid_plays = trajectory_dict_keys[["gameId","playId"]].drop_duplicates()
 
@@ -42,9 +42,10 @@ valid_games = pd.merge(bdb_games,valid_games,on="gameId",how="inner")
 valid_plays = pd.merge(bdb_plays,valid_plays,on=["gameId","playId"],how="inner")
 
 
-with open('../Notebooks/all_trajectory_dict.json', 'r') as f:
+with open(f'{my_dir}/../Notebooks/all_trajectory_dict_demo.json', 'r') as f:
     all_trajectory_dict_1_json = json.load(f)
     all_trajectory_dict = {ast.literal_eval(key_str): value for key_str, value in all_trajectory_dict_1_json.items()}
+
 
 o_padding_value = [-1.0 for _ in range(len([o_player_sequences[0][0]]))]
 padded_o_seq = tf.keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
