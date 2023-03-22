@@ -67,6 +67,55 @@ game_options = []
 for row in valid_games.itertuples():
     game_options.append({'label':f'{row.homeTeamAbbr} vs. {row.visitorTeamAbbr} playing home to {row.homeTeamAbbr} on {row.gameDate}','value':row.gameId})
 
+yard_lines = []
+yard_line_annotations = []
+current_yard = 0
+decrease = False
+for x in range(20, 110, 10):
+    if current_yard >= 50:
+        decrease = True
+    if decrease:
+        current_yard -= 10
+    else:
+        current_yard += 10
+    yard_line_annotations.append(dict(x=x, y=-2, showarrow=False, text=current_yard,font={'color':'#333333','size':20}))
+    yard_lines.append({
+        'type': 'line',
+        'xref': 'x',
+        'yref': 'y',
+        'x0': x,
+        'y0': 0,
+        'x1': x,
+        'y1': 53.3,
+        'line': {'color': 'white', 'width': 4},
+        'layer':'below'
+    })
+
+rects = [
+        dict(
+            type='rect',
+            x0=10, y0=0, x1=110, y1=53.3,
+            line=dict(color='white', width=4),
+            fillcolor='#B4EEB4',
+            layer = 'below'
+        ),
+        dict(
+            type='rect',
+            x0=0, y0=0, x1=10, y1=53.3,
+            line=dict(color='#333333', width=2),
+            fillcolor='#333333',
+            layer = 'below'
+        ),
+        dict(
+            type='rect',
+            x0=110, y0=0, x1=120, y1=53.3,
+            line=dict(color='#333333', width=2),
+            fillcolor='#333333',
+            layer = 'below'
+        )
+]
+yard_line_annotations.append(dict(x=5, y=26.65, showarrow=False, text= "ENDZONE",font={'color':'white','size':30},textangle = -90))
+yard_line_annotations.append(dict(x=115, y=26.65, showarrow=False, text= "ENDZONE",font={'color':'white','size':30},textangle = 90))
 
 def flipX(x,los_x):
     flipped_x = x - los_x
@@ -188,7 +237,7 @@ def los(x):
     return x,y
 data = []
 
-layout = go.Layout(title='Trajectory Plot', xaxis=dict(title='X'), yaxis=dict(title='Y'), legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000')))
+layout = go.Layout(title='Trajectory Plot', xaxis=dict(title='X',showgrid=False), yaxis=dict(title='Y',showgrid=False), legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000')))
 
 fig = go.Figure(data=data, layout=layout)
 
@@ -209,7 +258,7 @@ app.layout = html.Div([
                     className="blue-grey-text text-darken-4"
                 ),
                 html.P(
-                    children=["This application is for academic and research purposes only. This application was built using data from the", html.A("2023 Big Data Bowl competition",href="https://www.kaggle.com/competitions/nfl-big-data-bowl-2023/data"),
+                    children=["This application is for academic and research purposes only. This application was built using data from the ", html.A("2023 Big Data Bowl competition",href="https://www.kaggle.com/competitions/nfl-big-data-bowl-2023/data"),
                               ". All libraries used to produce this application are Open-source and free to use."],
                     className="grey-text text-darken-3 flow-text"
                 )
@@ -527,18 +576,10 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
             data.append(o_trace)
             data.append(d_trace)
             fig = go.Figure(data=data,
-                    layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[-5,125]), 
-                    yaxis=dict(title='Y',range=[-5,58.3]),
+                    layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120],showgrid=False), 
+                    yaxis=dict(title='Y',range=[-5,58.3],showgrid=False),
                     legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom"),
-                    shapes=[
-                        dict(
-                            type='rect',
-                            x0=0, y0=0, x1=120, y1=53.3,
-                            line=dict(color='white', width=2),
-                            fillcolor='#B4EEB4',
-                            layer = 'below'
-                        )
-                    ]
+                    shapes= rects+yard_lines
                 )
             )
             return fig
@@ -559,18 +600,10 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
             data.append(o_trace)
             data.append(d_trace)
             fig = go.Figure(data=data,
-                layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[-5,125]), 
-                yaxis=dict(title='Y',range=[-5,58.3]),
+                layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120] ,showgrid=False), 
+                yaxis=dict(title='Y',range=[-5,58.3],showgrid=False),
                 legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom"),
-                shapes=[
-                    dict(
-                        type='rect',
-                        x0=0, y0=0, x1=120, y1=53.3,
-                        line=dict(color='white', width=2),
-                        fillcolor='#B4EEB4',
-                        layer = 'below'
-                    )
-                ]
+                shapes=rects+yard_lines
             )
         )
             return fig
@@ -607,18 +640,11 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
     data.append(o_trace)
     data.append(d_trace)
     fig = go.Figure(data=data, 
-        layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[-5,125]), 
-                yaxis=dict(title='Y',range=[-5,58.3]),
+        layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120],showgrid=False), 
+                yaxis=dict(title='Y',range=[-5,58.3],showgrid=False),
                 legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom"),
-                shapes=[
-                    dict(
-                        type='rect',
-                        x0=0, y0=0, x1=120, y1=53.3,
-                        line=dict(color='white', width=2),
-                        fillcolor='#B4EEB4',
-                        layer = 'below'
-                    )
-                ]
+                shapes=rects+yard_lines,
+                annotations=yard_line_annotations
             )
         )
     return fig
