@@ -11,6 +11,7 @@ import dash_bootstrap_components as dbc
 import os
 
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
+app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = os.path.dirname(__file__)
 
@@ -194,20 +195,22 @@ fig = go.Figure(data=data, layout=layout)
 app.layout = html.Div([
     html.Div(id="hidden-div", style={"display": "none"}),
     dbc.Container([
-        html.H1(children='',id='plot-header'),
+        #html.H1(children='',id='plot-header'),
         html.H1(
-            children="My Dash Application",
+            children="",
             className="center-align"
         ),
         html.Div(
             className="card-panel",
             children=[
+                html.H1("NFL Defensive Trajectory Predictive Tool"),
                 html.H3(
                     children="Description",
                     className="blue-grey-text text-darken-4"
                 ),
                 html.P(
-                    children="This is a sample Dash application. It demonstrates how to create a simple layout using Dash HTML components.",
+                    children=["This application is for academic and research purposes only. This application was built using data from the", html.A("2023 Big Data Bowl competition",href="https://www.kaggle.com/competitions/nfl-big-data-bowl-2023/data"),
+                              ". All libraries used to produce this application are Open-source and free to use."],
                     className="grey-text text-darken-3 flow-text"
                 )
             ]
@@ -215,7 +218,7 @@ app.layout = html.Div([
     ],
     id = "info-component",
     fluid = True,
-    className = "py-3"),
+    className = "py-3 text-center"),
 
     html.Div([
     dcc.Tabs(id='tabs', value='seq-selection', children=[
@@ -326,38 +329,46 @@ app.layout = html.Div([
         ,className= "my-4")
     ],fluid=True),
     html.Div(id = "play-mode",children=[
+                html.Div(id="extra-space-game",children=[],style={"height":"100px"}),
+                html.H2('Please select a game below to view plays in the selected game.',id='game-select-header',className = "my-4 mx-auto text-center"),
                 dcc.Dropdown(
                 id='game-dropdown',
                 options=game_options,
                 value=None,
                 placeholder='Select a Game in the season to view plays...',
-                searchable=True),
+                searchable=True,
+                className = "mx-auto my-4 w-50"),
+                html.H2('Please select a play below to display the play on the trajectory plot.',id='play-select-header',className = "my-4 mx-auto text-center"),
                 dcc.Dropdown(
                 id='play-dropdown',
                 options=[],
                 value=None,
                 placeholder='Select a Play in the selected game to plot...',
-                searchable=True),
+                searchable=True,
+                className = "mx-auto my-4 w-50"),
             ]),
     html.Div(
         id = "cluster-mode",
         children=[
+            html.Div(id="extra-space-cluster",children=[],style={"height":"100px"}),
             html.Div(
                     children=[
-                    html.H2('Please select a cluster center below to view sequences in the selected cluster.',id='cluster-header'),
+                    html.H2('Please select a cluster center below to view sequences in the selected cluster.',id='cluster-header',className = "my-4 mx-auto text-center"),
                     dcc.Dropdown(
                         id='cluster-dropdown',
                         options=cluster_options,
                         value=None,
                         placeholder='Select a cluster center...',
-                        searchable=False),
-                    html.H2('Please select a sequence below to display on the trajectory plot.',id='seq-header'),
+                        searchable=False,
+                        className = "mx-auto my-4 w-50"),
+                    html.H2('Please select a sequence below to display on the trajectory plot.',id='seq-header',className = "my-4 mx-auto text-center"),
                     dcc.Dropdown(
                         id='cluster-center-dropdown',
                         options=cluster_center_options,
                         value=None,
                         placeholder='Select a sequence to display...',
-                        searchable=False),
+                        searchable=False,
+                        className = "mx-auto my-4 w-50"),
                     ]
                 ),
             html.Div(id='cluster-div',children=[
@@ -445,7 +456,7 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
 
 @app.callback(
     Output('trajectory-graph', 'figure'),
-    Output('plot-header','children'),
+    #Output('plot-header','children'),
     [Input('start-x', 'value'),
      Input('start-y', 'value'),
      Input('seq-index', 'value'),
@@ -500,13 +511,13 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
             new_ooy = oo_y[:current_index]
             new_odx = od_x[:current_index]
             new_ody = od_y[:current_index]
-            oo_trace = go.Scattergl(x=new_oox, y=new_ooy, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
-            od_trace = go.Scattergl(x=new_odx, y=new_ody, mode='markers', marker=dict(size=10,color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1') 
-            o_team_trace = go.Scattergl(x=new_otx,y = new_oty,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
-            d_team_trace = go.Scattergl(x=new_dtx,y = new_dty,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
-            o_trace = go.Scattergl(x=new_ox, y=new_oy, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
-            d_trace = go.Scattergl(x=new_dx, y=new_dy, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
-            los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
+            oo_trace = go.Scatter(x=new_oox, y=new_ooy, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
+            od_trace = go.Scatter(x=new_odx, y=new_ody, mode='markers', marker=dict(size=10,color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1') 
+            o_team_trace = go.Scatter(x=new_otx,y = new_oty,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
+            d_team_trace = go.Scatter(x=new_dtx,y = new_dty,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
+            o_trace = go.Scatter(x=new_ox, y=new_oy, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+            d_trace = go.Scatter(x=new_dx, y=new_dy, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
+            los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
             data = [los_trace]
             if plot_type == 'play-full':
                 data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
@@ -530,15 +541,15 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
                     ]
                 )
             )
-            return fig,f"Viewing Plot for ID: {index}"
+            return fig
         else:
-            oo_trace = go.Scattergl(x=oo_x, y=oo_y, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
-            od_trace = go.Scattergl(x=od_x, y=od_y, mode='markers', marker=dict(size=10, color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1') 
-            o_team_trace = go.Scattergl(x=off_seq_x,y = off_seq_y,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
-            d_team_trace = go.Scattergl(x=def_seq_x,y = def_seq_y,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
-            o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
-            d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
-            los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
+            oo_trace = go.Scatter(x=oo_x, y=oo_y, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
+            od_trace = go.Scatter(x=od_x, y=od_y, mode='markers', marker=dict(size=10, color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1') 
+            o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
+            d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
+            o_trace = go.Scatter(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+            d_trace = go.Scatter(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
+            los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
             data = [los_trace]
             if plot_type == 'play-full':
                 data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
@@ -562,7 +573,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
                 ]
             )
         )
-            return fig,f"Viewing Plot for ID: {index}"
+            return fig
     
     off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,flip_x,flip_y = generate_play_trajectories(index,los_x)
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x,flip_x,flip_y)
@@ -580,13 +591,13 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
         #green_value = int(marker_colors[i-1].split(',')[1]) - 2
         blue_value = int(d_marker_colors[i-1].split(',')[2].split(')')[0]) -2
         d_marker_colors.append(f'rgb({red_value}, 255, {blue_value})')
-    o_team_trace = go.Scattergl(x=off_seq_x,y = off_seq_y,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
-    d_team_trace = go.Scattergl(x=def_seq_x,y = def_seq_y,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
-    oo_trace = go.Scattergl(x=oo_x, y=oo_y, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
-    od_trace = go.Scattergl(x=od_x, y=od_y, mode='markers', marker=dict(size=10,color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1')
-    o_trace = go.Scattergl(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
-    d_trace = go.Scattergl(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
-    los_trace = go.Scattergl(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
+    o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode='markers', marker=dict(size=10,color = 'red'),name = 'Offensive Team', showlegend=True, legendgroup='group1')
+    d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode='markers', marker=dict(size=10,color = 'blue'),name = 'Defensive Team', showlegend=True, legendgroup='group1')
+    oo_trace = go.Scatter(x=oo_x, y=oo_y, mode='markers', marker=dict(size=10,color = '#333333'), name='Original Offensive Player', showlegend=True, legendgroup='group1')
+    od_trace = go.Scatter(x=od_x, y=od_y, mode='markers', marker=dict(size=10,color = '#003366'), name='Original Defensive Player', showlegend=True, legendgroup='group1')
+    o_trace = go.Scatter(x=o_x, y=o_y, mode='markers', marker=dict(size=10, color=o_marker_colors), name='Offensive Player', showlegend=True, legendgroup='group1')
+    d_trace = go.Scatter(x=d_x, y=d_y, mode='markers', marker=dict(size=10, color=d_marker_colors), name='Defensive Player', showlegend=True, legendgroup='group1')
+    los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode='lines', name='Line of Scrimmage', showlegend=True, legendgroup='group1')
     data = [los_trace]
     if plot_type == 'play-full':
         data = [los_trace,o_team_trace,d_team_trace]#oo_trace,od_trace,o_trace,d_trace]
@@ -610,7 +621,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
                 ]
             )
         )
-    return fig,f"Viewing Plot for ID: {index}"
+    return fig
 
 
 @app.callback(
@@ -685,16 +696,17 @@ def set_cluster_seq(c_seq,playId,cluster,index,gameId):
     Output('play-dropdown', 'options'),
     Output('play-dropdown','style'),
     Output('play-dropdown','value'),
+    Output('play-select-header','style'),
     [Input('game-dropdown','value')],
 )
 def set_cluster_seq(value):
     if value is None:
-        return [],{'display':'none'},None
+        return [],{'display':'none'},None,{'display':'none'}
     game_play_df = valid_plays[(valid_plays['gameId'] == value)]
     play_drd_options = []
     for row in game_play_df.itertuples():
         play_drd_options.append({'label':row.playDescription,'value':row.playId})
-    return play_drd_options,{},None
+    return play_drd_options,{},None,{}
 
 @app.callback(
         Output('play-mode', 'style'),
