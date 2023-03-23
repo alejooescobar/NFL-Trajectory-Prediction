@@ -1,61 +1,100 @@
-from dash import Dash, html, dcc
+from dash import Dash, html, dcc,no_update
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
-import tensorflow as tf
-import numpy as np
-import json
-import pandas as pd
-import ast
-import dash
+from tensorflow import keras,data as tfdata
+from numpy import load,polyfit,linspace,poly1d
+from json import load as jsonload
+from pandas import read_csv,DataFrame,merge
+from ast import literal_eval
 import dash_bootstrap_components as dbc
-import os
+from os import path
+import tracemalloc
 
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "NFL Defensive Trajectory Prediction"
 
-my_dir = os.path.dirname(__file__)
+my_dir = path.dirname(__file__)
 
-model = tf.keras.models.load_model(f'{my_dir}/../Notebooks/LSTMModel2Layer.h5')
+#tracemalloc.start()
 
-o_player_sequences, d_player_sequences = np.load('../Notebooks/trajectories.npy',allow_pickle=True)
-sequences_ordered = np.load('../Notebooks/sequences_ordered.npy',allow_pickle=True)
-# getting the ordered sequences from the clustering
-o_player_sequences_id = np.load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True)
 
-with open('../Notebooks/player_pairs.json', 'r') as f:
-    player_pairs_str = json.load(f)
-    player_pairs = {ast.literal_eval(key_str): value for key_str, value in player_pairs_str.items()}
+### Model loading
+
+model = keras.models.load_model(f'{my_dir}/../Notebooks/LSTMModel2Layer.h5')
+
+### =================================================================================
+
+### Profiling Sequence loading
+
+o_player_sequences, _ = load('../Notebooks/trajectories.npy',allow_pickle=True)
+
+sequences_ordered = load('../Notebooks/sequences_ordered.npy',allow_pickle=True)# getting the ordered sequences from the clustering
+
+o_player_sequences_id = load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True) 
+
+### ==================================================================================
+
+### Profiling loading JSON's 
+
+#with open('../Notebooks/player_pairs.json', 'r') as f:
+#    player_pairs_str = jsonload(f)
+#    player_pairs = {literal_eval(key_str): value for key_str, value in player_pairs_str.items()}
 
 with open('../Notebooks/player_pair_ids.json', 'r') as f:
-    player_pair_ids_str = json.load(f)
-    player_pair_ids = {ast.literal_eval(key_str): value for key_str, value in player_pair_ids_str.items()}
+    player_pair_ids_str = jsonload(f)
+    player_pair_ids = {literal_eval(key_str): value for key_str, value in player_pair_ids_str.items()}
 
+with open('../Notebooks/all_trajectory_dict.json', 'r') as f:
+    all_trajectory_dict_1_json = jsonload(f)
+    all_trajectory_dict = {literal_eval(key_str): value for key_str, value in all_trajectory_dict_1_json.items()}
 player_pair_ids = {k:v for k,v in player_pair_ids.items() if v}
 
-trajectory_dict_keys = pd.DataFrame(list(player_pair_ids.keys()),columns=["gameId","playId"])
-bdb_games = pd.read_csv("../NFLData/games.csv")
-bdb_plays = pd.read_csv("../NFLData/plays.csv")
-bdb_players = pd.read_csv("../NFLData/players.csv")
+
+### ==================================================================================
+
+#print("\n\nPRINTING MEMORY ALLOCATION DETAILS")
+
+#ss_filter = [tracemalloc.Filter(True, __file__),tracemalloc.Filter(False, tracemalloc.__file__)]
+
+#snapshot = tracemalloc.take_snapshot()
+#snapshot = snapshot.filter_traces(ss_filter)
+#top_stats = snapshot.statistics('lineno')
+
+#for stat in top_stats[:10]:
+#    print(stat)
+
+
+#print("DONE PRINTING MEMORY ALLOCATION DETAILS\n\n")
+
+
+### Profiling Loading NFL files
+
+trajectory_dict_keys = DataFrame(list(player_pair_ids.keys()),columns=["gameId","playId"])
+bdb_games = read_csv("../NFLData/games.csv")
+bdb_plays = read_csv("../NFLData/plays.csv")
+bdb_players = read_csv("../NFLData/players.csv")
 valid_games = trajectory_dict_keys[["gameId"]].drop_duplicates()
 valid_plays = trajectory_dict_keys[["gameId","playId"]].drop_duplicates()
 
-valid_games = pd.merge(bdb_games,valid_games,on="gameId",how="inner")
-valid_plays = pd.merge(bdb_plays,valid_plays,on=["gameId","playId"],how="inner")
+valid_games = merge(bdb_games,valid_games,on="gameId",how="inner")
+valid_plays = merge(bdb_plays,valid_plays,on=["gameId","playId"],how="inner")
 
+### ==================================================================================
 
-with open('../Notebooks/all_trajectory_dict.json', 'r') as f:
-    all_trajectory_dict_1_json = json.load(f)
-    all_trajectory_dict = {ast.literal_eval(key_str): value for key_str, value in all_trajectory_dict_1_json.items()}
+# Profiling loading, padding and masking sequences 
 
 o_padding_value = [-1.0 for _ in range(len([o_player_sequences[0][0]]))]
-padded_o_seq = tf.keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
-masking_o_layer = tf.keras.layers.Masking(mask_value=-1)
-masked_o_seq = masking_o_layer(padded_o_seq)
+#padded_o_seq = keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
+masking_o_layer = keras.layers.Masking(mask_value=-1)
+#masked_o_seq = masking_o_layer(padded_o_seq)
+d_empty = [[0,0] for _ in range(90)]
+#padding_value = [-1.0 for _ in range(len([d_player_sequences[0][0]]))]
+#padded_d_seq = keras.preprocessing.sequence.pad_sequences(d_player_sequences,padding='post', value=padding_value, dtype='float32',maxlen = 90)
+#masking_layer = keras.layers.Masking(mask_value=-1)
+#masked_d_seq = masking_layer(padded_d_seq)
+### ==================================================================================
 
-padding_value = [-1.0 for _ in range(len([d_player_sequences[0][0]]))]
-padded_d_seq = tf.keras.preprocessing.sequence.pad_sequences(d_player_sequences,padding='post', value=padding_value, dtype='float32',maxlen = 90)
-masking_layer = tf.keras.layers.Masking(mask_value=-1)
-masked_d_seq = masking_layer(padded_d_seq)
+
 prev_clicks = 0
 o_x, o_y,d_x,d_y = [],[],[],[]
 los_x_arr,los_y_arr = [],[]
@@ -135,9 +174,9 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     if index<0:
         index = -1*index
     o_seq = o_player_sequences[index]
-    expected_sequence = masked_d_seq[index]
     o_sequence_len = len(o_seq)
-
+    #expected_sequence = masked_d_seq[index]
+    #print(expected_sequence)
     #left_sideline = 53.3
     #right_sideline = 0.0
 
@@ -154,9 +193,9 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
         o_seq[i][8] = start_x
         o_seq[i][9] = start_y
         o_seq[i][10] = los_x
-    padded_o_seq = tf.keras.preprocessing.sequence.pad_sequences([o_seq],padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
+    padded_o_seq = keras.preprocessing.sequence.pad_sequences([o_seq],padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
     m_o_seq = masking_o_layer(padded_o_seq)
-    predict_dataset = tf.data.Dataset.from_tensor_slices((m_o_seq,[expected_sequence]))
+    predict_dataset = tfdata.Dataset.from_tensor_slices((m_o_seq,[d_empty]))
     predict_dataset_batched = predict_dataset.batch(1)
     predicted_sequence = model.predict(predict_dataset_batched)
     predicted_sequence = predicted_sequence[0]
@@ -178,37 +217,30 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     predicted_sequence_y = predicted_sequence_y[0:o_sequence_len]
 
 
-    z = np.polyfit(predicted_sequence_x, predicted_sequence_y, 3)
-    f = np.poly1d(z)
+    z = polyfit(predicted_sequence_x, predicted_sequence_y, 3)
+    f = poly1d(z)
 
     # calculate new x's and y's
-    x_new = np.linspace(predicted_sequence_x[0], predicted_sequence_x[-1], 50)
+    x_new = linspace(predicted_sequence_x[0], predicted_sequence_x[-1], 50)
     y_new = f(x_new)
     return x, y,x_new,y_new
 
 def generate_play_trajectories(index,los_x):
     play_key = o_player_sequences_id[index] # game play o_player d_player
-    #print(f"play key {play_key}",end="\n\n")
     o_player_id = int(play_key[2])
     d_player_id = int(play_key[3])
-    #print(f"o_player_id: {o_player_id} d_player_id: {d_player_id}")
     teams = valid_plays[(valid_plays["gameId"] == play_key[0])&(valid_plays["playId"] == play_key[1])]
-    #print(teams,end="\n\n")
     off_team = teams.iloc[0]['possessionTeam']
     def_team = teams.iloc[0]['defensiveTeam']
     actual_los = teams.iloc[0]['absoluteYardlineNumber']
-    #print(off_team)
-    #print(actual_los)
     off_play = all_trajectory_dict[(play_key[0],play_key[1],off_team)]
     def_play = all_trajectory_dict[(play_key[0],play_key[1],def_team)]
     off_play = {int(float(k)):v for k,v in off_play.items()}
     def_play = {int(float(k)):v for k,v in def_play.items()}
-    #print(off_play.keys(),end="\n\n")
-    #print(def_play.keys(),end="\n\n")
     o_player = off_play.pop(o_player_id,[])
     d_player = def_play.pop(d_player_id,[])
+    
     if len(d_player) == 0 or len(o_player) == 0:
-        #print(f"o_player: {o_player} d_player: {d_player}")
         return [],[],[],[],[],[],[],[],False,False
     off_seqs = list(off_play.values())
     def_seqs = list(def_play.values())
@@ -518,7 +550,7 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
 )
 def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show_original,disabled):
     if index is None:
-        return dash.no_update,dash.no_update
+        return no_update,no_update
     global o_x,o_y,d_x,d_y,off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,los_x_arr,los_y_arr,o_marker_colors,d_marker_colors
     if not(disabled):
         seq_len = min(len(o_x),len(d_x),len(off_seq_x)//10,len(def_seq_x)//10,len(oo_x),len(oo_y))
@@ -579,7 +611,8 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
                     layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120],showgrid=False), 
                     yaxis=dict(title='Y',range=[-5,58.3],showgrid=False),
                     legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom"),
-                    shapes= rects+yard_lines
+                    shapes= rects+yard_lines,
+                    annotations=yard_line_annotations
                 )
             )
             return fig
@@ -603,7 +636,8 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
                 layout=go.Layout(title='Trajectory Plot', xaxis=dict(title='X',range=[0,120] ,showgrid=False), 
                 yaxis=dict(title='Y',range=[-5,58.3],showgrid=False),
                 legend=dict(x=1, y=1, traceorder='normal', font=dict(family='sans-serif', size=12, color='#000'),orientation = 'h',xanchor = "right",yanchor="bottom"),
-                shapes=rects+yard_lines
+                shapes=rects+yard_lines,
+                annotations=yard_line_annotations
             )
         )
             return fig
@@ -710,7 +744,7 @@ def reset_centerdrd(value_cluster):
     State('seq-index', 'value'),
     State('game-dropdown','value')
 )
-def set_cluster_seq(c_seq,playId,cluster,index,gameId):
+def set__seq(c_seq,playId,cluster,index,gameId):
     if playId is not None and gameId is not None:
         return player_pair_ids[(gameId,playId)][0]
     if cluster is not None and c_seq is not None:
@@ -725,7 +759,7 @@ def set_cluster_seq(c_seq,playId,cluster,index,gameId):
     Output('play-select-header','style'),
     [Input('game-dropdown','value')],
 )
-def set_cluster_seq(value):
+def set_play_dropdown(value):
     if value is None:
         return [],{'display':'none'},None,{'display':'none'}
     game_play_df = valid_plays[(valid_plays['gameId'] == value)]
