@@ -5,7 +5,7 @@ from tensorflow import keras,data as tfdata
 from numpy import polyfit,linspace,poly1d
 from pandas import read_csv
 import dash_bootstrap_components as dbc
-from os import path
+from os import path,environ
 #import tracemalloc
 from pymongo import MongoClient
 
@@ -14,7 +14,9 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mclient = MongoClient("mongodb+srv://alejoesc2000:hu8X1ZA9btpmNobL@cpsc502.wv2dsv5.mongodb.net/test")
+mongo_username = environ.get('MONGO_USERNAME')
+mongo_password = environ.get('MONGO_PASSWORD')
+mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
 seq_col = db.Sequence
