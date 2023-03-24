@@ -182,7 +182,7 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     if index<0:
         index = -1*index
     o_seq = seq_col.find_one({'seqIndex':index})['seqOSeqFull']
-    print(f"HERE!!!\n{o_seq}")
+    #print(f"HERE!!!\n{o_seq}")
     o_sequence_len = len(o_seq)
     #expected_sequence = masked_d_seq[index]
     #print(expected_sequence)
