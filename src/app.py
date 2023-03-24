@@ -2,18 +2,23 @@ from dash import Dash, html, dcc,no_update
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 from tensorflow import keras,data as tfdata
-from numpy import load,polyfit,linspace,poly1d
-from json import load as jsonload
-from pandas import read_csv,DataFrame,merge
-from ast import literal_eval
+from numpy import polyfit,linspace,poly1d
+from pandas import read_csv
 import dash_bootstrap_components as dbc
 from os import path
-import tracemalloc
+#import tracemalloc
+from pymongo import MongoClient
+
 
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
+mclient = MongoClient("mongodb+srv://alejoesc2000:hu8X1ZA9btpmNobL@cpsc502.wv2dsv5.mongodb.net/test")
+db = mclient.CPSC502
+cluster_col = db.Cluster
+seq_col = db.Sequence
+go_col = db.GameOptions
 
 #tracemalloc.start()
 
@@ -26,11 +31,11 @@ model = keras.models.load_model(f'{my_dir}/../Notebooks/LSTMModel2Layer.h5')
 
 ### Profiling Sequence loading
 
-o_player_sequences, _ = load('../Notebooks/trajectories.npy',allow_pickle=True)
+#o_player_sequences, _ = load('../Notebooks/trajectories.npy',allow_pickle=True)
 
-sequences_ordered = load('../Notebooks/sequences_ordered.npy',allow_pickle=True)# getting the ordered sequences from the clustering
+#sequences_ordered = load('../Notebooks/sequences_ordered.npy',allow_pickle=True)# getting the ordered sequences from the clustering
 
-o_player_sequences_id = load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True) 
+#o_player_sequences_id = load('../Notebooks/o_player_sequences_id.npy',allow_pickle=True) 
 
 ### ==================================================================================
 
@@ -40,14 +45,14 @@ o_player_sequences_id = load('../Notebooks/o_player_sequences_id.npy',allow_pick
 #    player_pairs_str = jsonload(f)
 #    player_pairs = {literal_eval(key_str): value for key_str, value in player_pairs_str.items()}
 
-with open('../Notebooks/player_pair_ids.json', 'r') as f:
-    player_pair_ids_str = jsonload(f)
-    player_pair_ids = {literal_eval(key_str): value for key_str, value in player_pair_ids_str.items()}
+#with open('../Notebooks/player_pair_ids.json', 'r') as f:
+#    player_pair_ids_str = jsonload(f)
+#    player_pair_ids = {literal_eval(key_str): value for key_str, value in player_pair_ids_str.items()}
 
-with open('../Notebooks/all_trajectory_dict.json', 'r') as f:
-    all_trajectory_dict_1_json = jsonload(f)
-    all_trajectory_dict = {literal_eval(key_str): value for key_str, value in all_trajectory_dict_1_json.items()}
-player_pair_ids = {k:v for k,v in player_pair_ids.items() if v}
+#with open('../Notebooks/all_trajectory_dict.json', 'r') as f:
+#    all_trajectory_dict_1_json = jsonload(f)
+#    all_trajectory_dict = {literal_eval(key_str): value for key_str, value in all_trajectory_dict_1_json.items()}
+#player_pair_ids = {k:v for k,v in player_pair_ids.items() if v}
 
 
 ### ==================================================================================
@@ -69,21 +74,21 @@ player_pair_ids = {k:v for k,v in player_pair_ids.items() if v}
 
 ### Profiling Loading NFL files
 
-trajectory_dict_keys = DataFrame(list(player_pair_ids.keys()),columns=["gameId","playId"])
-bdb_games = read_csv("../NFLData/games.csv")
-bdb_plays = read_csv("../NFLData/plays.csv")
-bdb_players = read_csv("../NFLData/players.csv")
-valid_games = trajectory_dict_keys[["gameId"]].drop_duplicates()
-valid_plays = trajectory_dict_keys[["gameId","playId"]].drop_duplicates()
+#trajectory_dict_keys = DataFrame(list(player_pair_ids.keys()),columns=["gameId","playId"])
+#bdb_games = read_csv("../NFLData/games.csv")
+#bdb_plays = read_csv("../NFLData/plays.csv")
+#bdb_players = read_csv("../NFLData/players.csv")
+#valid_games = trajectory_dict_keys[["gameId"]].drop_duplicates()
+#valid_plays = trajectory_dict_keys[["gameId","playId"]].drop_duplicates()
 
-valid_games = merge(bdb_games,valid_games,on="gameId",how="inner")
-valid_plays = merge(bdb_plays,valid_plays,on=["gameId","playId"],how="inner")
+valid_games = read_csv("../Notebooks/valid_games.csv")#merge(bdb_games,valid_games,on="gameId",how="inner")
+valid_plays = read_csv("../Notebooks/valid_plays.csv")#merge(bdb_plays,valid_plays,on=["gameId","playId"],how="inner")
 
 ### ==================================================================================
 
 # Profiling loading, padding and masking sequences 
 
-o_padding_value = [-1.0 for _ in range(len([o_player_sequences[0][0]]))]
+o_padding_value = [-1.0 for _ in range(11)] # Number of features in the offensive player sequences
 #padded_o_seq = keras.preprocessing.sequence.pad_sequences(o_player_sequences,padding='post', value=o_padding_value, dtype='float32',maxlen = 90)
 masking_o_layer = keras.layers.Masking(mask_value=-1)
 #masked_o_seq = masking_o_layer(padded_o_seq)
@@ -102,6 +107,7 @@ o_marker_colors = ['rgb(200, 200, 255)']
 d_marker_colors = ['rgb(200, 255, 200)']
 cluster_options = [{'label': f'Cluster Center {i+1}', 'value': i} for i in range(8)]
 cluster_center_options = [{'label': f'Sequence {i+1}', 'value': i} for i in range(8)]
+#game_options = go_col.find()
 game_options = []
 for row in valid_games.itertuples():
     game_options.append({'label':f'{row.homeTeamAbbr} vs. {row.visitorTeamAbbr} playing home to {row.homeTeamAbbr} on {row.gameDate}','value':row.gameId})
@@ -173,7 +179,7 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     index = int(index)
     if index<0:
         index = -1*index
-    o_seq = o_player_sequences[index]
+    o_seq = seq_col.find_one({'seqIndex':index})['seqOSeqFull']
     o_sequence_len = len(o_seq)
     #expected_sequence = masked_d_seq[index]
     #print(expected_sequence)
@@ -226,37 +232,36 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     return x, y,x_new,y_new
 
 def generate_play_trajectories(index,los_x):
-    play_key = o_player_sequences_id[index] # game play o_player d_player
-    o_player_id = int(play_key[2])
-    d_player_id = int(play_key[3])
-    teams = valid_plays[(valid_plays["gameId"] == play_key[0])&(valid_plays["playId"] == play_key[1])]
-    off_team = teams.iloc[0]['possessionTeam']
-    def_team = teams.iloc[0]['defensiveTeam']
-    actual_los = teams.iloc[0]['absoluteYardlineNumber']
-    off_play = all_trajectory_dict[(play_key[0],play_key[1],off_team)]
-    def_play = all_trajectory_dict[(play_key[0],play_key[1],def_team)]
-    off_play = {int(float(k)):v for k,v in off_play.items()}
-    def_play = {int(float(k)):v for k,v in def_play.items()}
-    o_player = off_play.pop(o_player_id,[])
-    d_player = def_play.pop(d_player_id,[])
+    play = seq_col.find_one({'seqIndex':index})
+
+    #play_key = o_player_sequences_id[index] # game play o_player d_player
+    #o_player_id = int(play_key[2])
+    #d_player_id = int(play_key[3])
+    play_info = valid_plays[(valid_plays["gameId"] == play['seqGameID'])&(valid_plays["playId"] == play['seqPlayID'])]
+    #off_team = teams.iloc[0]['possessionTeam']
+    #def_team = teams.iloc[0]['defensiveTeam']
+    actual_los = play_info.iloc[0]['absoluteYardlineNumber']
+    #off_play = all_trajectory_dict[(play_key[0],play_key[1],off_team)]
+    #def_play = all_trajectory_dict[(play_key[0],play_key[1],def_team)]
+    #off_play = {int(float(k)):v for k,v in off_play.items()}
+    #def_play = {int(float(k)):v for k,v in def_play.items()}
+    original_o_player_x,original_o_player_y = play['seqOArrX'],play['seqOArrY']
+    original_d_player_x,original_d_player_y = play['seqDArrX'],play['seqDArrY']
     
-    if len(d_player) == 0 or len(o_player) == 0:
+    if len(original_o_player_x) == 0 or len(original_d_player_x) == 0:
         return [],[],[],[],[],[],[],[],False,False
-    off_seqs = list(off_play.values())
-    def_seqs = list(def_play.values())
-    off_seq_x = [x[0]-actual_los+los_x for i in range(len(off_seqs)) for x in off_seqs[i]]
-    off_seq_y = [x[1] for i in range(len(off_seqs)) for x in off_seqs[i]]
-    def_seq_x = [x[0]-actual_los+los_x for i in range(len(def_seqs)) for x in def_seqs[i]]
-    def_seq_y = [x[1] for i in range(len(def_seqs)) for x in def_seqs[i]]
     
-    flip_x = actual_los < o_player[0][0] # on the right side of los
-    flip_y = 26.65 < o_player[0][1] # above halfway line
+    off_seq_x,off_seq_y = play['seqOTeamX'],play['seqOTeamY']
+    def_seq_x,def_seq_y = play['seqDTeamX'],play['seqDTeamY']
 
-    original_o_player_x = [x[0]-actual_los+los_x for x in o_player]
-    original_o_player_y = [x[1] for x in o_player]
+    off_seq_x = [x-actual_los+los_x for x in off_seq_x]
+    def_seq_x = [x-actual_los+los_x for x in def_seq_x]
+    
+    flip_x = actual_los < original_o_player_x[0] # on the right side of los
+    flip_y = 26.65 < original_o_player_y[0] # above halfway line
 
-    original_d_player_x = [x[0]-actual_los+los_x for x in d_player]
-    original_d_player_y = [x[1] for x in d_player]
+    original_o_player_x = [x-actual_los+los_x for x in original_o_player_x]
+    original_d_player_x = [x-actual_los+los_x for x in original_d_player_x]
 
     
     return off_seq_x,off_seq_y,def_seq_x,def_seq_y,original_o_player_x,original_o_player_y,original_d_player_x,original_d_player_y,flip_x,flip_y
@@ -710,23 +715,18 @@ def update_button_text(n_intervals,disabled):
     )
 def update_cluster_figure(value):
     cluster_figures = []
+    i = 0
     if value in range(8):
-        for i in range(8):
-            current_c_index = sequences_ordered[value][i][1]
-            seq = o_player_sequences[current_c_index]
-            c_x = [x[0] for x in seq]
-            c_y = [x[1] for x in seq]   
-            c_trace = go.Scatter(x=c_x, y=c_y, mode='markers', name=f'Sequence {i}')
-            cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Sequence {i}', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
-        return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{},{}
 
-    for i in range(len(sequences_ordered)):
-        current_c_index = sequences_ordered[i][0][1]
-        seq = o_player_sequences[current_c_index]
-        c_x = [x[0] for x in seq]
-        c_y = [x[1] for x in seq]   
-        c_trace = go.Scatter(x=c_x, y=c_y, mode='markers', name=f'Cluster {i}')
+        for seq in cluster_col.find({'clusterID':value}):
+            c_trace = go.Scatter(x=seq['clusterSeqX'], y=seq['clusterSeqY'], mode='markers', name=f'Sequence {i+1}')
+            cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Sequence {i}', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
+            i+= 1
+        return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{},{}
+    for seq in cluster_col.find({'clusterID':-1}):
+        c_trace = go.Scatter(x=seq['clusterSeqX'], y=seq['clusterSeqY'], mode='markers', name=f'Cluster {i+1}')
         cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f'Cluster {i} Sequence', xaxis=dict(title='X',range=[0,20]), yaxis=dict(title='Y',range=[-20,20]))))
+        i+=1
     return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{'display':'none'},{'display':'none'}
 
 @app.callback(
@@ -746,9 +746,9 @@ def reset_centerdrd(value_cluster):
 )
 def set__seq(c_seq,playId,cluster,index,gameId):
     if playId is not None and gameId is not None:
-        return player_pair_ids[(gameId,playId)][0]
+        return seq_col.find_one({'seqGameID':gameId,'seqPlayID':playId})['seqIndex']#player_pair_ids[(gameId,playId)][0]
     if cluster is not None and c_seq is not None:
-        return sequences_ordered[cluster][c_seq][1]
+        return cluster_col.find_one({'clusterID':cluster,'clusterOrder':c_seq})['clusterOriginalID']
     else:
         return index
 
@@ -793,4 +793,4 @@ def set_cluster_seq(value):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
