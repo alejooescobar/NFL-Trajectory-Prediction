@@ -12,3 +12,4 @@ Notebooks/trajectories.npy
 Notebooks/KerasTuner
 Notebooks/trajectory_dict_keys.csv
 Notebooks/all_trajectory_dict.json
+src/__pycache__

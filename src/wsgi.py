@@ -1,3 +1,3 @@
-from app import app
+from dashapp import app
 
 server = app.server

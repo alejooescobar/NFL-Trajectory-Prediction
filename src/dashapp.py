@@ -6,10 +6,10 @@ from numpy import polyfit,linspace,poly1d
 from pandas import read_csv
 import dash_bootstrap_components as dbc
 from os import path,environ
-#import tracemalloc
+from flask import Flask
 from pymongo import MongoClient
 
-
+#flask_server = Flask(__name__)
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "NFL Defensive Trajectory Prediction"
 
