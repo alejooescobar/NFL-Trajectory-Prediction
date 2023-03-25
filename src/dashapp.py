@@ -10,7 +10,6 @@ from pymongo import MongoClient
 
 #flask_server = Flask(__name__)
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
-server = app.server
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
