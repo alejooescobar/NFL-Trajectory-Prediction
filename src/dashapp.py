@@ -64,11 +64,8 @@ d_empty = [[0,0] for _ in range(90)]
 ### ==================================================================================
 
 
-prev_clicks = 0
-o_x, o_y,d_x,d_y = [],[],[],[]
-los_x_arr,los_y_arr = [],[]
-#o_marker_colors = ["rgb(200, 200, 255)"]
-#d_marker_colors = ["rgb(255, 215, 0)"]
+
+
 cluster_options = [{"label": f"Cluster Center {i+1}", "value": i} for i in range(8)]
 cluster_center_options = [{"label": f"Sequence {i+1}", "value": i} for i in range(8)]
 game_options = []
@@ -287,7 +284,7 @@ app.layout = html.Div([
                     is_open=False
                 ),
             ],
-        style={"position": "fixed", "bottom": "20px", "left": "20px"},
+        style={"position": "fixed", "bottom": "20px", "right": "20px"},
     ),
     dbc.Container([
         #html.H1(children="",id="plot-header"),
@@ -356,12 +353,16 @@ app.layout = html.Div([
     html.Div([
             html.Div([
                 html.Div([
-                        dcc.Graph(
-                            id="trajectory-graph", figure=fig, 
-                            config={"displayModeBar": False, "doubleClick": "reset"},
-                            clickData={"points": [{"customdata": "Add Point"}]},
-                            style={"height": "800px","z-index": "9000"}
-                        )]
+                        dcc.Loading(
+                            dcc.Graph(
+                                id="trajectory-graph", figure=fig, 
+                                config={"displayModeBar": False, "doubleClick": "reset"},
+                                clickData={"points": [{"customdata": "Add Point"}]},
+                                style={"height": "800px","z-index": "9000"}
+                            ),
+                            type="cube"
+                        )
+                        ]
                     ),
                     html.Div([
                     dcc.Slider(
@@ -411,15 +412,8 @@ app.layout = html.Div([
                         placement="left",
                     )]
             ,style={"display": "inline-block", "width": "5%","marginBottom":"3%"}),
-            dcc.Interval(
-                id="interval-component",
-                interval=500,
-                n_intervals=0,
-                disabled = True
-            )
     ]),
     html.Div([
-        dbc.Button(id="play-button", children="View Play in Real Time", n_clicks=0),
         dbc.Button(id="play-info-button", children="View Play Information"),
         dbc.Modal(
             [
@@ -431,7 +425,7 @@ app.layout = html.Div([
                 ),
             ],
             id="play-info-modal",
-            size="lg"
+            size="xl"
         )
 
     ],className = "d-grid gap-2 col-6 mx-auto my-5"),
@@ -598,25 +592,6 @@ app.layout = html.Div([
     html.Div(id="extra-space",children=[],style={"height":"400px"})
 ])
 
-@app.callback(
-    Output("interval-component", "disabled"),
-    Output("interval-component", "n_intervals"),
-    [Input("play-button", "n_clicks"),Input("interval-component", "n_intervals")],
-    [State("interval-component","disabled")]
-)
-def start_stop_interval(n_clicks,n_intervals,disabled):
-    global prev_clicks,o_x,o_y,d_x,d_y
-    seq_len = min(len(o_x),len(o_y),len(d_x),len(d_y))
-    if n_clicks > prev_clicks:
-        prev_clicks = n_clicks
-        return False,0
-    if not(disabled) and n_intervals*5 > seq_len:
-        return True, 0
-    elif n_clicks > 0 and not(disabled):
-        prev_clicks = n_clicks
-        return False, n_intervals
-
-    return disabled,n_intervals
 
 @app.callback(
     Output("trajectory-graph", "figure"),
@@ -625,113 +600,48 @@ def start_stop_interval(n_clicks,n_intervals,disabled):
      Input("seq-index", "value"),
      Input("los-slider", "value"),
      Input("y-slider","value"),
-     Input("interval-component", "n_intervals"),
      Input("plot-tabs","active_tab"),
      Input("original-switch","value")],    
-    [State("interval-component","disabled")]
 )
-def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show_original,disabled):
+def update_figure(start_x, start_y,index,los_x,y_pos,plot_type,show_original):
     if index is None:
         return no_update,no_update
     if index < 0 or index >= num_sequences:
         return no_update,no_update
-    global o_x,o_y,d_x,d_y,off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,los_x_arr,los_y_arr,o_marker_colors,d_marker_colors
-    if not(disabled):
-        seq_len = min(len(o_x),len(d_x),len(off_seq_x)//10,len(def_seq_x)//10,len(oo_x),len(oo_y))
-        current_index = n_intervals*5
-        if current_index < seq_len:
-            new_ox = o_x[:current_index]
-            new_oy = o_y[:current_index]
-            new_dx = d_x[:current_index]
-            new_dy = d_y[:current_index]
-            inner_length = len(off_seq_x)//10
-            new_otx = []
-            new_oty = []
-            for i in range(10):
-                counter = i * inner_length
-                for j in range(inner_length):
-                    if j < current_index and counter < len(off_seq_x):
-                        new_otx.append(off_seq_x[counter])
-                        new_oty.append(off_seq_y[counter])
-                    else:
-                        break
-                    counter += 1
-            inner_length = len(def_seq_x)//10
-            new_dtx = []
-            new_dty = []
-            for i in range(10):
-                counter = i * inner_length
-                for j in range(inner_length):
-                    if j < current_index and counter < len(def_seq_x):
-                        new_dtx.append(def_seq_x[counter])
-                        new_dty.append(def_seq_y[counter])
-                    else:
-                        break
-                    counter += 1
-            new_oox = oo_x[:current_index]
-            new_ooy = oo_y[:current_index]
-            new_odx = od_x[:current_index]
-            new_ody = od_y[:current_index]
-            oo_trace = go.Scatter(x=new_oox, y=new_ooy, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
-            od_trace = go.Scatter(x=new_odx, y=new_ody, mode="markers", marker=dict(size=10,color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1") 
-            o_team_trace = go.Scatter(x=new_otx,y = new_oty,mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1")
-            d_team_trace = go.Scatter(x=new_dtx,y = new_dty,mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1")
-            o_trace = go.Scatter(x=new_ox, y=new_oy, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1")
-            d_trace = go.Scatter(x=new_dx, y=new_dy, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
-            los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode="lines", name="Line of Scrimmage", showlegend=True, legendgroup="group1")
-            data = [los_trace]
-            if plot_type == "play-full":
-                data = [los_trace,o_team_trace,d_team_trace]
-            if show_original:
-                data.append(oo_trace)
-                data.append(od_trace)
-            data.append(o_trace)
-            data.append(d_trace)
-            fig = go.Figure(data=data,
-                    layout=go.Layout(title="Trajectory Plot", 
-                    xaxis=dict(title="X",range=[0,120],showgrid=False,showticklabels=False), 
-                    yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
-                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
-                    shapes= rects+yard_lines,
-                    annotations=yard_line_annotations,
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)"
-                )
-            )
-            return fig
-        else:
-            oo_trace = go.Scatter(x=oo_x, y=oo_y, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
-            od_trace = go.Scatter(x=od_x, y=od_y, mode="markers", marker=dict(size=10, color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1") 
-            o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1")
-            d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1")
-            o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1")
-            d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
-            los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode="lines", name="Line of Scrimmage", showlegend=True, legendgroup="group1")
-            data = [los_trace]
-            if plot_type == "play-full":
-                data = [los_trace,o_team_trace,d_team_trace]
-            if show_original:
-                data.append(oo_trace)
-                data.append(od_trace)
-            data.append(o_trace)
-            data.append(d_trace)
-            fig = go.Figure(data=data,
-                layout=go.Layout(title="Trajectory Plot", 
-                xaxis=dict(title="X",range=[0,120] ,showgrid=False,showticklabels=False), 
-                yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
-                legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
-                shapes=rects+yard_lines,
-                annotations=yard_line_annotations,
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)"
-            )
-        )
-            return fig
     
     off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,flip_x,flip_y = generate_play_trajectories(index,los_x)
     o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x,flip_x,flip_y)
 
     los_x_arr,los_y_arr = los(los_x)
+    
+    inner_length = len(def_seq_x)//10
+    off_seq_x_separate = []
+    off_seq_y_separate = []
+    counter = 0
+    for _ in range(10):
+        inner_x = []
+        inner_y = []
+        for _ in range(inner_length):
+            inner_x.append(off_seq_x[counter])
+            inner_y.append(off_seq_y[counter])
+            counter += 1
+        off_seq_x_separate.append(inner_x)
+        off_seq_y_separate.append(inner_y)
+
+    inner_length = len(def_seq_x)//10
+    counter = 0
+    def_seq_x_separate = []
+    def_seq_y_separate = []
+    for _ in range(10):
+        inner_x = []
+        inner_y = []
+        for _ in range(inner_length):
+            inner_x.append(def_seq_x[counter])
+            inner_y.append(def_seq_y[counter])
+            counter += 1
+        def_seq_x_separate.append(inner_x)
+        def_seq_y_separate.append(inner_y)
+
     o_marker_colors = ["rgb(200, 200, 255)"]
     d_marker_colors = ["rgb(255, 215, 0)"]
     for i in range(1, len(o_x)):
@@ -744,44 +654,104 @@ def update_figure(start_x, start_y,index,los_x,y_pos, n_intervals,plot_type,show
         green_value = int(d_marker_colors[i-1].split(",")[1]) - 2
         #blue_value = int(d_marker_colors[i-1].split(",")[2].split(")")[0]) -2
         d_marker_colors.append(f"rgb({red_value}, {green_value}, 0)")
-    o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1")
-    d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1")
+    
+    #o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1")
+    #d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1")
     oo_trace = go.Scatter(x=oo_x, y=oo_y, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
     od_trace = go.Scatter(x=od_x, y=od_y, mode="markers", marker=dict(size=10,color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1")
     o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1")
     d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
     los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode="lines", name="Line of Scrimmage", showlegend=True, legendgroup="group1")
+
+    frames = []
+    i = 0
+    current_index = 5
+    inner_length = len(off_seq_x)//10
+    seq_len = min(len(o_x),len(d_x),len(off_seq_x)//10,len(def_seq_x)//10,len(oo_x),len(oo_y))
+
+    while current_index < seq_len:
+        data = [los_trace,
+
+                ]
+
+        if plot_type == "play-full":
+            for i in range(len(def_seq_x_separate)):
+                data.append(go.Scatter(x=off_seq_x_separate[i][:current_index],y = off_seq_y_separate[i][:current_index]))
+                data.append(go.Scatter(x=def_seq_x_separate[i][:current_index],y = def_seq_y_separate[i][:current_index]))
+#            data.append(go.Scatter(x=new_otx,y=new_oty))
+#            data.append(go.Scatter(x=new_dtx,y=new_dty))
+        if show_original:
+            data.append(go.Scatter(x=oo_x[:current_index],y=oo_y[:current_index]))
+            data.append(go.Scatter(x=od_x[:current_index],y=od_y[:current_index]))
+        data.append(go.Scatter(x=o_x[:current_index], y=o_y[:current_index]))
+        data.append(go.Scatter(x=d_x[:current_index],y=d_y[:current_index]))
+        frames.append(go.Frame(data=data))
+        current_index += 5
     data = [los_trace]
     if plot_type == "play-full":
-        data = [los_trace,o_team_trace,d_team_trace]
+        for i in range(len(def_seq_x_separate)):
+            data.append(go.Scatter(x=off_seq_x_separate[i],y = off_seq_y_separate[i]))
+            data.append(go.Scatter(x=def_seq_x_separate[i],y = def_seq_y_separate[i]))
+    if show_original:
+        data.append(go.Scatter(x=oo_x,y=oo_y))
+        data.append(go.Scatter(x=od_x,y=od_y))
+    data.append(go.Scatter(x=o_x, y=o_y))
+    data.append(go.Scatter(x=d_x, y=d_y))
+    frames.append(go.Frame(data=data))
+
+    data = []
+    if plot_type == "play-full":
+        for i in range(len(def_seq_x_separate)):
+            if i == 0:
+                data.append(go.Scatter(x=off_seq_x_separate[i],y = off_seq_y_separate[i],mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1"))
+                data.append(go.Scatter(x=def_seq_x_separate[i],y = def_seq_y_separate[i],mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1"))
+            else:
+                data.append(go.Scatter(x=off_seq_x_separate[i],y = off_seq_y_separate[i],mode="markers", marker=dict(size=10,color = "red"),showlegend=False,name = "Offensive Team"))
+                data.append(go.Scatter(x=def_seq_x_separate[i],y = def_seq_y_separate[i],mode="markers", marker=dict(size=10,color = "blue"),showlegend=False,name = "Defensive Team"))
     if show_original:
         data.append(oo_trace)
         data.append(od_trace)
-    data.append(o_trace)
-    data.append(d_trace)
-    fig = go.Figure(data=data, 
-        layout=go.Layout(title="Trajectory Plot", 
+    data = [los_trace] + data + [o_trace,d_trace]
+    fig = go.Figure(
+        data=data, 
+        layout=go.Layout(
+                title="Trajectory Plot", 
                 xaxis=dict(title="X",range=[0,120],showgrid=False,showticklabels=False), 
                 yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
                 legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
                 shapes=rects+yard_lines,
                 annotations=yard_line_annotations,
                 plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)"
-            )
+                paper_bgcolor="rgba(0,0,0,0)",
+                updatemenus=[
+                    dict(
+                    type="buttons",
+                    buttons=[
+                            dict(label="Play",
+                            method="animate",
+                            args=[None]
+                            )
+                        ],
+                        direction="left",
+                        pad={"l": 10, "t": 57},
+                        showactive=True,
+                        x=0,
+                        xanchor="left",
+                        y=1,
+                        yanchor="top",
+#                        bordercolor="#008CBA", 
+#                        borderwidth=2,
+#                        bgcolor = "#008CBA"
+
+
+                    )
+                ]
+            ),
+            frames = frames
         )
     return fig
 
 
-@app.callback(
-    Output("play-button","children"),
-    [Input("interval-component", "n_intervals"),
-    Input("interval-component","disabled")]
-)
-def update_button_text(n_intervals,disabled):
-    if disabled:
-        return "View Play in Real Time"
-    return f"{n_intervals*0.5} s"
 
 @app.callback(
     Output("cluster-graph-1", "figure"),
@@ -804,12 +774,12 @@ def update_cluster_figure(value):
 
         for seq in cluster_col.find({"clusterID":value}):
             c_trace = go.Scatter(x=seq["clusterSeqX"], y=seq["clusterSeqY"], mode="markers", name=f"Sequence {i+1}")
-            cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f"Sequence {i}", xaxis=dict(title="X",range=[0,20]), yaxis=dict(title="Y",range=[-20,20]))))
+            cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f"Sequence {i+1}", xaxis=dict(title="X",range=[0,20]), yaxis=dict(title="Y",range=[-20,20]))))
             i+= 1
         return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{},{}
     for seq in cluster_col.find({"clusterID":-1}):
         c_trace = go.Scatter(x=seq["clusterSeqX"], y=seq["clusterSeqY"], mode="markers", name=f"Cluster {i+1}")
-        cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f"Cluster {i} Sequence", xaxis=dict(title="X",range=[0,20]), yaxis=dict(title="Y",range=[-20,20]))))
+        cluster_figures.append(go.Figure(data=[c_trace], layout=go.Layout(title=f"Cluster {i+1} Sequence", xaxis=dict(title="X",range=[0,20]), yaxis=dict(title="Y",range=[-20,20]))))
         i+=1
     return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{"display":"none"},{"display":"none"}
 
