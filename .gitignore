@@ -1,13 +1,5 @@
-NFLData/week1.csv
-NFLData/week2.csv
-NFLData/week3.csv
-NFLData/week4.csv
-NFLData/week5.csv
-NFLData/week6.csv
-NFLData/week7.csv
-NFLData/week8.csv
-NFLData/pffScoutingData.csv
-
+NFLData/
+Notebooks/data/
 Notebooks/trajectories.npy
 Notebooks/KerasTuner
 Notebooks/trajectory_dict_keys.csv

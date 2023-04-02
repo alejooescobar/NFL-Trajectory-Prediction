@@ -13,8 +13,8 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mongo_username = environ.get("MONGO_USERNAME")
-mongo_password = environ.get("MONGO_PASSWORD")
+mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
+mongo_password = "FXFzcKvp3JZK7sv5"#environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
@@ -28,7 +28,7 @@ play_fields = {
     "down": "Down (number).",
     "yardsToGo": "Distance needed for a first down.",
     "possessionTeam": "Team abbreviation of the team on offense with possession of the ball.",
-    "defensiveTeam": "Team abbreviation of the team on defense.",
+    #"defensiveTeam": "Team abbreviation of the team on defense.",
     "yardlineSide": "3-letter team code corresponding to line-of-scrimmage (los).",
     "yardlineNumber": "Yard line at line-of-scrimmage (los).",
     "gameClock": "Time on clock of play (MM:SS).",
@@ -36,10 +36,10 @@ play_fields = {
     "preSnapVisitorScore": "Visiting team score prior to the play.",
     "passResult": "Dropback outcome of the play (C: Complete pass, I: Incomplete pass, S: Quarterback sack, IN: Intercepted pass, R: Scramble).",
     "penaltyYards": "yards gained by offense by penalty.",
-    "prePenaltyPlayResult": "Net yards gained by the offense, before penalty yardage.",
-    "playResult": "Net yards gained by the offense, including penalty yardage.",
-    "foulName1": "Name of the 1st penalty committed during the play.",
-    "foulNFLId1": "nflId of the player who comitted the 1st penalty during the play.",
+    #"prePenaltyPlayResult": "Net yards gained by the offense, before penalty yardage.",
+    #"playResult": "Net yards gained by the offense, including penalty yardage.",
+    #"foulName1": "Name of the 1st penalty committed during the play.",
+    #"foulNFLId1": "nflId of the player who comitted the 1st penalty during the play.",
     "absoluteYardlineNumber": "Distance from end zone for possession team.",
     "offenseFormation": "Formation used by possession team."
 }
@@ -47,7 +47,7 @@ play_fields = {
 num_sequences = seq_col.count_documents({})
 
 
-model = keras.models.load_model(f"{my_dir}/../Notebooks/LSTMModel2Layer.h5")
+model = keras.models.load_model(f"{my_dir}/../Notebooks/LSTMModel2LayerFull.h5")
 
 
 
