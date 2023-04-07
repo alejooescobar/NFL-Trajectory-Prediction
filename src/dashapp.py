@@ -13,8 +13,8 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
-mongo_password = "FXFzcKvp3JZK7sv5"#environ.get("MONGO_PASSWORD")
+mongo_username = environ.get("MONGO_USERNAME")
+mongo_password = environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
@@ -28,7 +28,7 @@ play_fields = {
     "down": "Down (number).",
     "yardsToGo": "Distance needed for a first down.",
     "possessionTeam": "Team abbreviation of the team on offense with possession of the ball.",
-    #"defensiveTeam": "Team abbreviation of the team on defense.",
+    "defensiveTeam": "Team abbreviation of the team on defense.",
     "yardlineSide": "3-letter team code corresponding to line-of-scrimmage (los).",
     "yardlineNumber": "Yard line at line-of-scrimmage (los).",
     "gameClock": "Time on clock of play (MM:SS).",
@@ -36,10 +36,10 @@ play_fields = {
     "preSnapVisitorScore": "Visiting team score prior to the play.",
     "passResult": "Dropback outcome of the play (C: Complete pass, I: Incomplete pass, S: Quarterback sack, IN: Intercepted pass, R: Scramble).",
     "penaltyYards": "yards gained by offense by penalty.",
-    #"prePenaltyPlayResult": "Net yards gained by the offense, before penalty yardage.",
-    #"playResult": "Net yards gained by the offense, including penalty yardage.",
-    #"foulName1": "Name of the 1st penalty committed during the play.",
-    #"foulNFLId1": "nflId of the player who comitted the 1st penalty during the play.",
+    "prePenaltyPlayResult": "Net yards gained by the offense, before penalty yardage.",
+    "playResult": "Net yards gained by the offense, including penalty yardage.",
+    "foulName1": "Name of the 1st penalty committed during the play.",
+    "foulNFLId1": "nflId of the player who comitted the 1st penalty during the play.",
     "absoluteYardlineNumber": "Distance from end zone for possession team.",
     "offenseFormation": "Formation used by possession team."
 }
@@ -47,16 +47,16 @@ play_fields = {
 num_sequences = seq_col.count_documents({})
 
 
-model = keras.models.load_model(f"{my_dir}/../Notebooks/LSTMModel2LayerFull.h5")
+model = keras.models.load_model(f"{my_dir}/../Notebooks/models/LSTMModel2LayerFull.h5")
 
 
 
-valid_games = read_csv("../Notebooks/valid_games.csv")
-valid_plays = read_csv("../Notebooks/valid_plays.csv")
+valid_games = read_csv("../Notebooks/data/valid_games.csv")
+valid_plays = read_csv("../Notebooks/data/valid_plays.csv")
 
 
 
-o_padding_value = [-1.0 for _ in range(11)] # Number of features in the offensive player sequences
+o_padding_value = [-1.0 for _ in range(9)] # Number of features in the offensive player sequences
 
 masking_o_layer = keras.layers.Masking(mask_value=-1)
 d_empty = [[0,0] for _ in range(90)]
@@ -93,7 +93,8 @@ for x in range(20, 110, 10):
         "x1": x,
         "y1": 53.3,
         "line": {"color": "white", "width": 4},
-        "layer":"below"
+        "layer":"below",
+        "editable":False
     })
 
 rects = [
@@ -102,81 +103,103 @@ rects = [
             x0=10, y0=0, x1=110, y1=53.3,
             line=dict(color="white", width=4),
             fillcolor="#B4EEB4",
-            layer = "below"
+            layer = "below",
+            editable = False
         ),
         dict(
             type="rect",
             x0=0, y0=0, x1=10, y1=53.3,
             line=dict(color="#333333", width=2),
             fillcolor="#333333",
-            layer = "below"
+            layer = "below",
+            editable = False
         ),
         dict(
             type="rect",
             x0=110, y0=0, x1=120, y1=53.3,
             line=dict(color="#333333", width=2),
             fillcolor="#333333",
-            layer = "below"
+            layer = "below",
+            editable = False
         )
 ]
 yard_line_annotations.append(dict(x=5, y=26.65, showarrow=False, text= "ENDZONE",font={"color":"white","size":30},textangle = -90))
 yard_line_annotations.append(dict(x=115, y=26.65, showarrow=False, text= "ENDZONE",font={"color":"white","size":30},textangle = 90))
 
-def flipX(x,los_x):
-    flipped_x = x - los_x
-    flipped_x = -flipped_x
-    flipped_x = flipped_x+los_x
-    return flipped_x
-
-def flipY(y,los_y):
-    flipped_y = y - los_y
-    flipped_y = -flipped_y
-    flipped_y = flipped_y+los_y
-    return flipped_y
 
 # define a function that generates x and y arrays based on user input
-def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,flip_y):
+def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,flip_y,smooth):
     index = int(index)
-    if index<0:
-        index = -1*index
-    o_seq = seq_col.find_one({"seqIndex":index})["seqOSeqFull"]
+    if index<0 or index >= num_sequences:
+        index = 0
+    seq_doc = seq_col.find_one({"seqIndex":index})
+    o_seq = seq_doc["seqOSeqFull"]
+    o_seq_start_x = seq_doc["seqOArrX"][0]
+    o_seq_start_y = seq_doc["seqOArrY"][0]
+    if d_start_x < 0:
+        d_start_x = seq_doc["seqDArrX"][0]
+        if flip_x:
+            d_start_x = start_x-(d_start_x - o_seq_start_x)
+        else:
+            d_start_x = start_x+(d_start_x - o_seq_start_x)
+    if d_start_y < 0:
+        d_start_y = seq_doc["seqDArrY"][0]
+        if flip_y:
+            d_start_y = start_y-(d_start_y - o_seq_start_y)
+        else:
+            d_start_y = start_y+(d_start_y - o_seq_start_y)
     o_sequence_len = len(o_seq)
+    o_left_sideline_distance = 53.3 - start_y
+    if flip_x:
+        endzone_distance = abs(start_x)
+    else:
+        endzone_distance = abs(120-start_x)
+
     for i in range(o_sequence_len):
-        o_seq[i][6] = d_start_x
-        o_seq[i][7] = d_start_y
-        o_seq[i][8] = start_x
-        o_seq[i][9] = start_y
-        o_seq[i][10] = los_x
+        o_seq[i][3] = abs(d_start_x-start_x)
+        o_seq[i][4] = abs(d_start_y-start_y)
+        o_seq[i][5] = los_x
+        o_seq[i][6] = o_left_sideline_distance
+        o_seq[i][7] = start_y
+        o_seq[i][8] = endzone_distance
     padded_o_seq = keras.preprocessing.sequence.pad_sequences([o_seq],padding="post", value=o_padding_value, dtype="float32",maxlen = 90)
     m_o_seq = masking_o_layer(padded_o_seq)
     predict_dataset = tfdata.Dataset.from_tensor_slices((m_o_seq,[d_empty]))
     predict_dataset_batched = predict_dataset.batch(1)
     predicted_sequence = model.predict(predict_dataset_batched)
     predicted_sequence = predicted_sequence[0]
-
+    predicted_start_x = predicted_sequence[0][0]
+    predicted_start_y = predicted_sequence[0][1]
+    predicted_sequence = [[x[0] - predicted_start_x,x[1]-predicted_start_y] for x in predicted_sequence]
     if flip_x:
-        predicted_sequence_x = [flipX(x[0]+(2*los_x-(start_x+d_start_x)),los_x) for x in predicted_sequence]
-        x = [flipX(x[0]+(2*los_x-start_x),los_x) for x in o_seq]
+        predicted_sequence_x = [-x[0]+d_start_x for x in predicted_sequence]
+        x = [-x[0]+start_x for x in o_seq]
     else:
-        predicted_sequence_x = [x[0]+start_x+d_start_x for x in predicted_sequence]
+        predicted_sequence_x = [x[0]+d_start_x  for x in predicted_sequence]
         x = [x[0]+start_x for x in o_seq]
+    
     if flip_y:
-        predicted_sequence_y = [flipY(x[1]+(53.3-(start_y+d_start_y)),26.65) for x in predicted_sequence]
-        y = [flipY(x[1]+(53.3-start_y),26.65) for x in o_seq]
+        predicted_sequence_y = [-x[1]+d_start_y for x in predicted_sequence]
+        y = [-x[1]+start_y for x in o_seq]
     else:
-        predicted_sequence_y = [x[1]+start_y+d_start_y for x in predicted_sequence]
+        predicted_sequence_y = [x[1]+d_start_y for x in predicted_sequence]
         y = [x[1]+start_y for x in o_seq]
     predicted_sequence_x = predicted_sequence_x[0:o_sequence_len]
     predicted_sequence_y = predicted_sequence_y[0:o_sequence_len]
 
 
-    z = polyfit(predicted_sequence_x, predicted_sequence_y, 3)
-    f = poly1d(z)
+    if smooth:
+        z = polyfit(predicted_sequence_x, predicted_sequence_y, 3)
+        f = poly1d(z)
 
-    # calculate new x"s and y"s
-    x_new = linspace(predicted_sequence_x[0], predicted_sequence_x[-1], 50)
-    y_new = f(x_new)
+        # calculate new x"s and y"s
+        x_new = linspace(predicted_sequence_x[0], predicted_sequence_x[-1], 50)
+        y_new = f(x_new)
+    else:
+        x_new = predicted_sequence_x
+        y_new = predicted_sequence_y
     return x, y,x_new,y_new
+    
 
 def generate_play_trajectories(index,los_x):
     play = seq_col.find_one({"seqIndex":index})
@@ -199,7 +222,6 @@ def generate_play_trajectories(index,los_x):
 
     original_o_player_x = [x-actual_los+los_x for x in original_o_player_x]
     original_d_player_x = [x-actual_los+los_x for x in original_d_player_x]
-
     
     return off_seq_x,off_seq_y,def_seq_x,def_seq_y,original_o_player_x,original_o_player_y,original_d_player_x,original_d_player_y,flip_x,flip_y
 
@@ -212,7 +234,7 @@ def los(x):
 data = []
 
 layout = go.Layout(title="Trajectory Plot", xaxis=dict(title="X",showgrid=False,showticklabels=False), yaxis=dict(title="Y",showgrid=False,showticklabels=False), legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000")),plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)")
+        paper_bgcolor="rgba(0,0,0,0)",clickmode="none")
 
 fig = go.Figure(data=data, layout=layout)
 
@@ -287,7 +309,6 @@ app.layout = html.Div([
         style={"position": "fixed", "bottom": "20px", "right": "20px"},
     ),
     dbc.Container([
-        #html.H1(children="",id="plot-header"),
         html.H1(
             children="",
             className="center-align"
@@ -353,14 +374,16 @@ app.layout = html.Div([
     html.Div([
             html.Div([
                 html.Div([
-                        dcc.Loading(
+                        dbc.Spinner(
                             dcc.Graph(
                                 id="trajectory-graph", figure=fig, 
-                                config={"displayModeBar": False, "doubleClick": "reset"},
-                                clickData={"points": [{"customdata": "Add Point"}]},
                                 style={"height": "800px","z-index": "9000"}
                             ),
-                            type="cube"
+                            type="grow",
+                            delay_hide=400,
+                            show_initially=True,
+                            size= "md",
+                            color="primary"
                         )
                         ]
                     ),
@@ -381,11 +404,35 @@ app.layout = html.Div([
                             120: {"label": "120", "style": {"color": "#f50"}}
 
                         }
-                    )],style={"width":"94%","margin":"auto"})    
+                    )],style={"width":"94%","margin":"auto"}),
+                    html.Div([
+                    dcc.Slider(
+                        id="ostart-slider",
+                        min=0,
+                        max=120,
+                        step=1,
+                        value=59,
+                        marks={
+                            0: {"label": "0", "style": {"color": "#77b0b1"}},
+                            20: {"label": "20"},
+                            40: {"label": "40"},
+                            60: {"label": "60"},
+                            80: {"label": "80"},
+                            100: {"label": "100"},
+                            120: {"label": "120", "style": {"color": "#f50"}}
+
+                        }
+                    )],style={"width":"94%","margin":"auto"})   
+                     
                     ],style={"display": "inline-block", "width": "95%"}),
                     dbc.Tooltip(
                         "Adjust the line of scrimmage (LOS) to shift the play and sequences accordingly.",
                         target="los-slider",
+                        placement="bottom",
+                    ),
+                    dbc.Tooltip(
+                        "Adjust the starting x position of the offensive player.",
+                        target="ostart-slider",
                         placement="bottom",
                     ),
                     html.Div([
@@ -414,6 +461,7 @@ app.layout = html.Div([
             ,style={"display": "inline-block", "width": "5%","marginBottom":"3%"}),
     ]),
     html.Div([
+        dbc.Button(id="adjust-defender-button", children="View Suggested Defender Starting Positions"),
         dbc.Button(id="play-info-button", children="View Play Information"),
         dbc.Modal(
             [
@@ -433,23 +481,23 @@ app.layout = html.Div([
         dbc.Form(
             dbc.Row(
                 [
-                    dbc.Label("Defensive Start X",width = "auto",id="defensive-x-label",style={"textDecoration": "underline", "cursor": "pointer"}),
                     dbc.Tooltip(
                         "The offset of the defensive player's starting position x coordinate, relative to the offensive player's starting position x coordinate.",
                         target="defensive-x-label",
                         placement="top",
                     ),
                     dbc.Col(
-                        dcc.Slider(id="start-x", min=0, max=10, step=0.5, value=0)
+                        [dbc.Label("Defensive Start X",width = "auto",id="defensive-x-label",style={"textDecoration": "underline", "cursor": "pointer"},className="d-flex justify-content-center align-items-center"),
+                        dbc.Input(id="start-x", value=-1,type="number",className="d-flex justify-content-center align-items-center")]
                     ),
-                    dbc.Label("Defensive Start Y", width="auto",id="defensive-y-label",style={"textDecoration": "underline", "cursor": "pointer"}),
                     dbc.Tooltip(
                         "The offset of the defensive player's starting position y coordinate, relative to the offensive players starting position y coordinate.",
                         target="defensive-y-label",
                         placement="top",
                     ),
                     dbc.Col(
-                        dcc.Slider(id="start-y", min=-5, max=5, step=0.5, value=0)
+                        [dbc.Label("Defensive Start Y", width="auto",id="defensive-y-label",style={"textDecoration": "underline", "cursor": "pointer"},className="d-flex justify-content-center align-items-center"),
+                        dbc.Input(id="start-y", value=-1,type="number",className="d-flex justify-content-center align-items-center")]
                     )
                 ]
             )
@@ -457,33 +505,53 @@ app.layout = html.Div([
         dbc.Form(
             dbc.Row(
                 [
-                    dbc.Label("Sequence Index",width = "auto",id="seq-index-label",style={"textDecoration": "underline", "cursor": "pointer"}),
                     dbc.Tooltip(
                         f"Select an index within the range [0,{num_sequences-1}] to display an offensive sequence and the model-predicted sequence.",
                         target="seq-index-label",
                         placement="top",
                     ),
                     dbc.Col(
-                        dbc.Input(id="seq-index", type="number", value=0,placeholder="Please select an integer to display a sequence on the Trajectory Plot.")
+                        [dbc.Label("Sequence Index",width = "auto",id="seq-index-label",style={"textDecoration": "underline", "cursor": "pointer"},className="d-flex justify-content-center align-items-center"),
+                        dbc.Input(id="seq-index", type="number", value=0,placeholder="Please select an integer to display a sequence on the Trajectory Plot.",className="d-flex justify-content-center align-items-center")],
+                        align="center"
                     ),
-                    dbc.Label("Original Sequence Toggle", width="auto",id="seq-toggle",style={"textDecoration": "underline", "cursor": "pointer"}),
                     dbc.Col(
-                    dbc.Checklist(
-                        options=[
-                            {"label": "Show Original", "value": True},
-                        ],
-                        value=[True],
-                        id="original-switch",
-                        switch=True,
-                        )
-                    ),
+                        [dbc.Label("Original Sequence Toggle", width="auto",id="seq-toggle",style={"textDecoration": "underline", "cursor": "pointer"},className="d-flex justify-content-center align-items-center"),
+                        dbc.Checklist(
+                            options=[
+                                {"label": "Show Original", "value": True},
+                            ],
+                            value=[True],
+                            id="original-switch",
+                            switch=True,
+                            className="d-flex justify-content-center align-items-center")],
+                        align="center"
+                        ),
                     dbc.Tooltip(
                         "Toggle to show or hide the original defensive/offensive player pair to compare with the model prediction.",
                         target="seq-toggle",
                         placement="top",
                     ),
+                    dbc.Col([
+                        dbc.Label("Predicted Sequence Smoothing Toggle", width="auto",id="smooth-toggle",style={"textDecoration": "underline", "cursor": "pointer"},className="d-flex justify-content-center align-items-center"),
+                        dbc.Checklist(
+                            options=[
+                                {"label": "Smooth Curve", "value": True},
+                            ],
+                            value=[True],
+                            id="smooth-switch",
+                            switch=True,
+                            className="d-flex justify-content-center align-items-center")
+                        ],
+                        align="center"
+                        ),
+                        dbc.Tooltip(
+                            "Toggle to smooth the predicted curve or show the raw data points.",
+                            target="smooth-toggle",
+                            placement="top",
+                        ),
                 ]
-            )
+            ,justify="center",align="center")
         ,className= "my-4")
     ],fluid=True),
     html.Div(id = "play-mode",children=[
@@ -599,20 +667,25 @@ app.layout = html.Div([
      Input("start-y", "value"),
      Input("seq-index", "value"),
      Input("los-slider", "value"),
-     Input("y-slider","value"),
      Input("plot-tabs","active_tab"),
-     Input("original-switch","value")],    
+     Input("original-switch","value"),
+     Input("adjust-defender-button","n_clicks"),
+     Input("smooth-switch","value")],    
+     State("ostart-slider","value"),
+     State("y-slider","value"),
+     
 )
-def update_figure(start_x, start_y,index,los_x,y_pos,plot_type,show_original):
+def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,smooth,o_start_x,y_pos):
+    print(f"Triggered, {o_start_x} {y_pos} {start_x} {start_y}")
     if index is None:
-        return no_update,no_update
+        return no_update
     if index < 0 or index >= num_sequences:
-        return no_update,no_update
-    
-    off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,flip_x,flip_y = generate_play_trajectories(index,los_x)
-    o_x, o_y,d_x,d_y = generate_trajectory(los_x-1, y_pos,start_x,start_y,index,los_x,flip_x,flip_y)
-
+        return no_update
     los_x_arr,los_y_arr = los(los_x)
+    los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode="lines", name="Line of Scrimmage", showlegend=True, legendgroup="group1")
+    off_seq_x,off_seq_y,def_seq_x,def_seq_y,oo_x,oo_y,od_x,od_y,flip_x,flip_y = generate_play_trajectories(index,los_x)
+    o_x, o_y,d_x,d_y = generate_trajectory(o_start_x, y_pos,start_x,start_y,index,los_x,flip_x,flip_y,smooth)
+
     
     inner_length = len(def_seq_x)//10
     off_seq_x_separate = []
@@ -654,15 +727,55 @@ def update_figure(start_x, start_y,index,los_x,y_pos,plot_type,show_original):
         green_value = int(d_marker_colors[i-1].split(",")[1]) - 2
         #blue_value = int(d_marker_colors[i-1].split(",")[2].split(")")[0]) -2
         d_marker_colors.append(f"rgb({red_value}, {green_value}, 0)")
-    
-    #o_team_trace = go.Scatter(x=off_seq_x,y = off_seq_y,mode="markers", marker=dict(size=10,color = "red"),name = "Offensive Team", showlegend=True, legendgroup="group1")
-    #d_team_trace = go.Scatter(x=def_seq_x,y = def_seq_y,mode="markers", marker=dict(size=10,color = "blue"),name = "Defensive Team", showlegend=True, legendgroup="group1")
+
     oo_trace = go.Scatter(x=oo_x, y=oo_y, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
     od_trace = go.Scatter(x=od_x, y=od_y, mode="markers", marker=dict(size=10,color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1")
-    o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1")
-    d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
-    los_trace = go.Scatter(x=los_x_arr, y=los_y_arr, mode="lines", name="Line of Scrimmage", showlegend=True, legendgroup="group1")
+    o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1",selected=dict(marker=dict(color='red',size=10)))
 
+    d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
+    
+    if flip_x:
+        d_position_x = []
+        d_position_y = []
+        i = los_x-1
+        while i >= los_x-3:
+            j = y_pos - 3
+            while j <= y_pos + 3:
+                d_position_x.append(i)
+                d_position_y.append(j)
+                j+=1
+            i-=0.5
+    else:
+        d_position_x = []
+        d_position_y = []
+        i = los_x+1
+        while i <= los_x+3:
+            j = y_pos - 3
+            while j <= y_pos + 3:
+                d_position_x.append(i)
+                d_position_y.append(j)
+                j+=1
+            i+=0.5
+
+    d_position_trace = go.Scatter(x=d_position_x, y=d_position_y, mode="markers", marker=dict(size=10, color="green",symbol = "x"),text="Click to update the defensive starting position.", name="Defensive Player Positions", showlegend=True, legendgroup="group1")
+    if n_clicks:
+        fig = go.Figure(
+            data=[o_trace,los_trace,d_position_trace], 
+            layout=go.Layout(
+                    title="Trajectory Plot", 
+                    xaxis=dict(title="X",range=[min(los_x-2,o_x[0]-2,los_x+6,o_x[-1]-2),max(los_x+2,o_x[0]+2,los_x+6,o_x[-1])+2],showgrid=False,showticklabels=False), 
+                    yaxis=dict(title="Y",range=[min(o_y[0]-2,y_pos-7,o_y[-1]-2),max(o_y[0]+2,y_pos+7,o_y[-1]+2)],showgrid=False,showticklabels=False),
+                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
+                    shapes=rects+yard_lines,
+                    annotations=yard_line_annotations,
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    clickmode="event"
+
+                )
+            )
+        return fig
+    
     frames = []
     i = 0
     current_index = 5
@@ -678,8 +791,7 @@ def update_figure(start_x, start_y,index,los_x,y_pos,plot_type,show_original):
             for i in range(len(def_seq_x_separate)):
                 data.append(go.Scatter(x=off_seq_x_separate[i][:current_index],y = off_seq_y_separate[i][:current_index]))
                 data.append(go.Scatter(x=def_seq_x_separate[i][:current_index],y = def_seq_y_separate[i][:current_index]))
-#            data.append(go.Scatter(x=new_otx,y=new_oty))
-#            data.append(go.Scatter(x=new_dtx,y=new_dty))
+
         if show_original:
             data.append(go.Scatter(x=oo_x[:current_index],y=oo_y[:current_index]))
             data.append(go.Scatter(x=od_x[:current_index],y=od_y[:current_index]))
@@ -712,43 +824,41 @@ def update_figure(start_x, start_y,index,los_x,y_pos,plot_type,show_original):
         data.append(oo_trace)
         data.append(od_trace)
     data = [los_trace] + data + [o_trace,d_trace]
+
     fig = go.Figure(
-        data=data, 
-        layout=go.Layout(
-                title="Trajectory Plot", 
-                xaxis=dict(title="X",range=[0,120],showgrid=False,showticklabels=False), 
-                yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
-                legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
-                shapes=rects+yard_lines,
-                annotations=yard_line_annotations,
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                updatemenus=[
-                    dict(
-                    type="buttons",
-                    buttons=[
-                            dict(label="Play",
-                            method="animate",
-                            args=[None]
-                            )
-                        ],
-                        direction="left",
-                        pad={"l": 10, "t": 57},
-                        showactive=True,
-                        x=0,
-                        xanchor="left",
-                        y=1,
-                        yanchor="top",
-#                        bordercolor="#008CBA", 
-#                        borderwidth=2,
-#                        bgcolor = "#008CBA"
+            data=data, 
+            layout=go.Layout(
+                    title="Trajectory Plot", 
+                    xaxis=dict(title="X",range=[0,120],showgrid=False,showticklabels=False), 
+                    yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
+                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
+                    shapes=rects+yard_lines,
+                    annotations=yard_line_annotations,
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    updatemenus=[
+                        dict(
+                        type="buttons",
+                        buttons=[
+                                dict(label="Play",
+                                method="animate",
+                                args=[None]
+                                )
+                            ],
+                            direction="left",
+                            pad={"l": 10, "t": 57},
+                            showactive=True,
+                            x=0,
+                            xanchor="left",
+                            y=1,
+                            yanchor="top"
+                        )
+                    ],
+                    clickmode="none"
 
-
-                    )
-                ]
-            ),
-            frames = frames
-        )
+                ),
+                frames = frames,
+            )
     return fig
 
 
@@ -825,7 +935,6 @@ def set_play_dropdown(value):
 @app.callback(
         Output("play-mode", "style"),
         Output("cluster-mode","style"),
-        #Output(""),
         Input("tabs", "active_tab")
 )
 def render_tab_content(tab_clicked):
@@ -903,6 +1012,65 @@ def toggle_modal(n_clicks, is_open):
         return not is_open
     return is_open
 
+    
+@app.callback(
+    Output("los-slider","value"),
+    Output("ostart-slider","value"),
+    Output("y-slider","value"),
+    [Input("seq-index","value")],
+)
+def display_click_data(index):
+    los = no_update
+    o_x = no_update
+    o_y = no_update
+    los = 60
+    if index:
+        seq_doc = seq_col.find_one({"seqIndex":index})
+        play_info = valid_plays[(valid_plays["gameId"] == seq_doc["seqGameID"])&(valid_plays["playId"] == seq_doc["seqPlayID"])]
+        los = play_info.iloc[0]["absoluteYardlineNumber"]
+        o_x = seq_doc["seqOArrX"][0]
+        o_y = seq_doc["seqOArrY"][0]
+    return los,o_x,o_y
+
+@app.callback(
+    Output("start-x","value"),
+    Output("start-y","value"),
+    Output("adjust-defender-button","n_clicks"),
+    Output('trajectory-graph', 'clickData'),
+    [Input("adjust-defender-button","n_clicks"),
+    Input('trajectory-graph', 'clickData'),
+    Input("ostart-slider","value"),
+    Input("y-slider","value")],
+    State("seq-index","value")
+)
+def display_click_data(n_clicks,clickData,o_start_x,o_start_y,index):
+    d_x = no_update
+    d_y = no_update
+    new_nclicks = no_update
+    new_cd = no_update
+    o_x = no_update
+    o_y = no_update
+    if clickData:
+        d_x = clickData['points'][0]['x']
+        d_y = clickData['points'][0]['y']
+        new_nclicks = 0
+        new_cd = None
+    else:
+        if not(index) or index < 0 or index > num_sequences-1:
+            index = 0
+        seq_doc = seq_col.find_one({"seqIndex":index})
+        o_x = seq_doc["seqOArrX"][0]
+        o_y = seq_doc["seqOArrY"][0]
+        d_x = seq_doc["seqDArrX"][0]
+        d_y = seq_doc["seqDArrY"][0]
+        d_x = o_start_x + (d_x-o_x)
+        d_y = o_start_y + (d_y-o_y)
+    return d_x,d_y,new_nclicks,new_cd
+
+
+
+
+
 
 if __name__ == "__main__":
-    app.run_server(debug=False)
+    app.run_server(debug=True)
