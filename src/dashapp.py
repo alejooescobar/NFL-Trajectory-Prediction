@@ -380,7 +380,7 @@ app.layout = html.Div([
                                 style={"height": "800px","z-index": "9000"}
                             ),
                             type="grow",
-                            delay_hide=400,
+                            delay_hide=100,
                             show_initially=True,
                             size= "md",
                             color="primary"
