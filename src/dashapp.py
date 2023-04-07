@@ -51,8 +51,8 @@ model = keras.models.load_model(f"{my_dir}/../Notebooks/models/LSTMModel2LayerFu
 
 
 
-valid_games = read_csv("../Notebooks/data/valid_games.csv")
-valid_plays = read_csv("../Notebooks/data/valid_plays.csv")
+valid_games = read_csv("/data/valid_games.csv")
+valid_plays = read_csv("/data/valid_plays.csv")
 
 
 
