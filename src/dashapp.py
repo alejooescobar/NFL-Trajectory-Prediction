@@ -14,8 +14,8 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mongo_username = environ.get("MONGO_USERNAME")
-mongo_password = environ.get("MONGO_PASSWORD")
+mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
+mongo_password = "N0Nb6xxZgsKEgS2g"#environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
@@ -727,24 +727,24 @@ def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,
         def_seq_x_separate.append(inner_x)
         def_seq_y_separate.append(inner_y)
 
-    o_marker_colors = ["rgb(200, 200, 255)"]
-    d_marker_colors = ["rgb(255, 215, 0)"]
-    for i in range(1, len(o_x)):
-        red_value = int(o_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
-        green_value = int(o_marker_colors[i-1].split(",")[1]) - 2
-        #blue_value = int(marker_colors[i-1].split(",")[2].split(")")[0]) + 10
-        o_marker_colors.append(f"rgb({red_value}, {green_value}, 255)")
-    for i in range(1, len(d_x)):
-        red_value = int(d_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
-        green_value = int(d_marker_colors[i-1].split(",")[1]) - 2
-        #blue_value = int(d_marker_colors[i-1].split(",")[2].split(")")[0]) -2
-        d_marker_colors.append(f"rgb({red_value}, {green_value}, 0)")
+    #o_marker_colors = ["rgb(200, 200, 255)"]
+    #d_marker_colors = ["rgb(255, 215, 0)"]
+    #for i in range(1, len(o_x)):
+    #    red_value = int(o_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
+    #    green_value = int(o_marker_colors[i-1].split(",")[1]) - 2
+    #    #blue_value = int(marker_colors[i-1].split(",")[2].split(")")[0]) + 10
+    #    o_marker_colors.append(f"rgb({red_value}, {green_value}, 255)")
+    #for i in range(1, len(d_x)):
+    #    red_value = int(d_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
+    #    green_value = int(d_marker_colors[i-1].split(",")[1]) - 2
+    #    #blue_value = int(d_marker_colors[i-1].split(",")[2].split(")")[0]) -2
+    #    d_marker_colors.append(f"rgb({red_value}, {green_value}, 0)")
 
     oo_trace = go.Scatter(x=oo_x, y=oo_y, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
     od_trace = go.Scatter(x=od_x, y=od_y, mode="markers", marker=dict(size=10,color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1")
-    o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color=o_marker_colors), name="Offensive Player", showlegend=True, legendgroup="group1",selected=dict(marker=dict(color='red',size=10)))
+    o_trace = go.Scatter(x=o_x, y=o_y, mode="markers", marker=dict(size=10, color="#800000"), name="Offensive Player", showlegend=True, legendgroup="group1",selected=dict(marker=dict(color='red',size=10)))
 
-    d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color=d_marker_colors), name="Defensive Player", showlegend=True, legendgroup="group1")
+    d_trace = go.Scatter(x=d_x, y=d_y, mode="markers", marker=dict(size=10, color="#FBC02D "), name="Defensive Player", showlegend=True, legendgroup="group1")
     
     if flip_x:
         d_position_x = []
