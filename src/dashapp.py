@@ -7,6 +7,7 @@ from pandas import read_csv
 import dash_bootstrap_components as dbc
 from os import path,environ
 from pymongo import MongoClient
+from flask_caching import Cache
 
 #flask_server = Flask(__name__)
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.SIMPLEX, dbc.icons.BOOTSTRAP])
@@ -127,12 +128,23 @@ yard_line_annotations.append(dict(x=5, y=26.65, showarrow=False, text= "ENDZONE"
 yard_line_annotations.append(dict(x=115, y=26.65, showarrow=False, text= "ENDZONE",font={"color":"white","size":30},textangle = 90))
 
 
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': 'cache-directory'
+})
+
+TIMEOUT = 60
+
+@cache.memoize(timeout=TIMEOUT)
+def get_doc(index):
+    return seq_col.find_one({"seqIndex":index})
+
 # define a function that generates x and y arrays based on user input
 def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,flip_y,smooth):
     index = int(index)
     if index<0 or index >= num_sequences:
         index = 0
-    seq_doc = seq_col.find_one({"seqIndex":index})
+    seq_doc = get_doc(index)
     o_seq = seq_doc["seqOSeqFull"]
     o_seq_start_x = seq_doc["seqOArrX"][0]
     o_seq_start_y = seq_doc["seqOArrY"][0]
@@ -202,7 +214,7 @@ def generate_trajectory(start_x,start_y, d_start_x,d_start_y,index,los_x,flip_x,
     
 
 def generate_play_trajectories(index,los_x):
-    play = seq_col.find_one({"seqIndex":index})
+    play = get_doc(index)
     play_info = valid_plays[(valid_plays["gameId"] == play["seqGameID"])&(valid_plays["playId"] == play["seqPlayID"])]
     actual_los = play_info.iloc[0]["absoluteYardlineNumber"]
     original_o_player_x,original_o_player_y = play["seqOArrX"],play["seqOArrY"]
@@ -974,7 +986,7 @@ def update_modal_body(index):
         return no_update
     modal_children = [html.Span(["Here you can find play information collected for the displayed trajectories on the ",html.Strong("Trajectory Plot"),". This information is collected \
                     from the Big Data Bowl dataset and games/plays are uniquely identified by their assigned Big Data Bowl ID's."]),html.Span("")]
-    seq = seq_col.find_one({"seqIndex":index})
+    seq = get_doc(index)
     playId = seq["seqPlayID"]
     gameId = seq["seqGameID"]
     play = valid_plays[(valid_plays["gameId"] == gameId)&(valid_plays["playId"] == playId)]
@@ -1025,7 +1037,7 @@ def display_click_data(index):
     o_y = no_update
     los = 60
     if index:
-        seq_doc = seq_col.find_one({"seqIndex":index})
+        seq_doc = get_doc(index)
         play_info = valid_plays[(valid_plays["gameId"] == seq_doc["seqGameID"])&(valid_plays["playId"] == seq_doc["seqPlayID"])]
         los = play_info.iloc[0]["absoluteYardlineNumber"]
         o_x = seq_doc["seqOArrX"][0]
@@ -1058,7 +1070,7 @@ def display_click_data(n_clicks,clickData,o_start_x,o_start_y,index):
     else:
         if not(index) or index < 0 or index > num_sequences-1:
             index = 0
-        seq_doc = seq_col.find_one({"seqIndex":index})
+        seq_doc = get_doc(index)
         o_x = seq_doc["seqOArrX"][0]
         o_y = seq_doc["seqOArrY"][0]
         d_x = seq_doc["seqDArrX"][0]
