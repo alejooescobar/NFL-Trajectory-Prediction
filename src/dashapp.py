@@ -14,8 +14,8 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
-mongo_password = "N0Nb6xxZgsKEgS2g"#environ.get("MONGO_PASSWORD")
+mongo_username = environ.get("MONGO_USERNAME")
+mongo_password = environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
