@@ -1004,7 +1004,7 @@ def update_modal_body(index):
         )
 
     modal_children.append(dbc.Table(
-        [html.Thead(["Field", "Value", "Field Description"])]+
+        [html.Thead(html.Tr([html.Th("Field"),html.Th("Value"), html.Th("Field Description")]))]+
         [html.Tbody(table_rows)],
         bordered=True,
         striped=True,
