@@ -245,7 +245,7 @@ def los(x):
     return x,y
 data = []
 
-layout = go.Layout(title="Trajectory Plot", xaxis=dict(title="X",showgrid=False,showticklabels=False), yaxis=dict(title="Y",showgrid=False,showticklabels=False), legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000")),plot_bgcolor="rgba(0,0,0,0)",
+layout = go.Layout(title=dict(text='Trajectory Plot',font=dict(size=20)), xaxis=dict(title=dict(text='X Axis',font=dict(size=16)),showgrid=False,showticklabels=False), yaxis=dict(showgrid=False,showticklabels=False,title=dict(text='Y Axis',font=dict(size=16))), legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=18, color="#000")),plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",clickmode="none")
 
 fig = go.Figure(data=data, layout=layout)
@@ -774,10 +774,10 @@ def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,
         fig = go.Figure(
             data=[o_trace,los_trace,d_position_trace], 
             layout=go.Layout(
-                    title="Trajectory Plot", 
-                    xaxis=dict(title="X",range=[min(los_x-2,o_x[0]-2,los_x+6,o_x[-1]-2),max(los_x+2,o_x[0]+2,los_x+6,o_x[-1])+2],showgrid=False,showticklabels=False), 
-                    yaxis=dict(title="Y",range=[min(o_y[0]-2,y_pos-7,o_y[-1]-2),max(o_y[0]+2,y_pos+7,o_y[-1]+2)],showgrid=False,showticklabels=False),
-                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
+                    title=dict(text='Trajectory Plot',font=dict(size=20)), 
+                    xaxis=dict(range=[min(los_x-2,o_x[0]-2,los_x+6,o_x[-1]-2),max(los_x+2,o_x[0]+2,los_x+6,o_x[-1])+2],showgrid=False,showticklabels=False,title=dict(text='X Axis',font=dict(size=18))), 
+                    yaxis=dict(range=[min(o_y[0]-2,y_pos-7,o_y[-1]-2),max(o_y[0]+2,y_pos+7,o_y[-1]+2)],showgrid=False,showticklabels=False,title=dict(text='Y Axis',font=dict(size=18))),
+                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=16, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
                     shapes=rects+yard_lines,
                     annotations=yard_line_annotations,
                     plot_bgcolor="rgba(0,0,0,0)",
@@ -840,10 +840,10 @@ def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,
     fig = go.Figure(
             data=data, 
             layout=go.Layout(
-                    title="Trajectory Plot", 
-                    xaxis=dict(title="X",range=[0,120],showgrid=False,showticklabels=False), 
-                    yaxis=dict(title="Y",range=[-5,58.3],showgrid=False,showticklabels=False),
-                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=12, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
+                    title=dict(text='Trajectory Plot',font=dict(size=20)), 
+                    xaxis=dict(range=[0,120],showgrid=False,showticklabels=False,title=dict(text='X Axis',font=dict(size=18))), 
+                    yaxis=dict(range=[-5,58.3],showgrid=False,showticklabels=False,title=dict(text='Y Axis',font=dict(size=18))),
+                    legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=16, color="#000"),orientation = "h",xanchor = "right",yanchor="bottom"),
                     shapes=rects+yard_lines,
                     annotations=yard_line_annotations,
                     plot_bgcolor="rgba(0,0,0,0)",
