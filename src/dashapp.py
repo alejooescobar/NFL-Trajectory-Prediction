@@ -9,18 +9,21 @@ from os import path,environ
 from pymongo import MongoClient
 from flask_caching import Cache
 
-#flask_server = Flask(__name__)
+# creating app
 app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.SIMPLEX, dbc.icons.BOOTSTRAP])
 app.title = "NFL Defensive Trajectory Prediction"
 
+# creating mongo client and environment variables for password/username
 my_dir = path.dirname(__file__)
-mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
-mongo_password = "vVKYgj33xEjVu0Sp"#environ.get("MONGO_PASSWORD")
+mongo_username = environ.get("MONGO_USERNAME")
+mongo_password = environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
+# getting database and collections
 db = mclient.CPSC502
 cluster_col = db.Cluster
 seq_col = db.Sequence
 
+# creating information to display in the app
 play_fields = {
     "gameId":"Game identifier, unique.",
     "playId":"Play identifier, not unique across games.",
@@ -47,6 +50,7 @@ play_fields = {
 
 num_sequences = seq_col.count_documents({})
 
+# getting LSTM model
 
 model = keras.models.load_model(f"{my_dir}/../Notebooks/models/LSTMModel2LayerFull.h5")
 
@@ -98,6 +102,7 @@ for x in range(20, 110, 10):
         "editable":False
     })
 
+# rectangles for the field
 rects = [
         dict(
             type="rect",
@@ -124,6 +129,7 @@ rects = [
             editable = False
         )
 ]
+# yard line drawings
 yard_line_annotations.append(dict(x=5, y=26.65, showarrow=False, text= "ENDZONE",font={"color":"white","size":30},textangle = -90))
 yard_line_annotations.append(dict(x=115, y=26.65, showarrow=False, text= "ENDZONE",font={"color":"white","size":30},textangle = 90))
 
@@ -134,7 +140,7 @@ cache = Cache(app.server, config={
 })
 
 TIMEOUT = 60
-
+# cache document to avoid refreshing the dash plot
 @cache.memoize(timeout=TIMEOUT)
 def get_doc(index):
     return seq_col.find_one({"seqIndex":index})
@@ -244,12 +250,13 @@ def los(x):
     y = [0,53.3]
     return x,y
 data = []
-
+# app layout
 layout = go.Layout(title=dict(text='Trajectory Plot',font=dict(size=20)), xaxis=dict(title=dict(text='X Axis',font=dict(size=16)),showgrid=False,showticklabels=False), yaxis=dict(showgrid=False,showticklabels=False,title=dict(text='Y Axis',font=dict(size=16))), legend=dict(x=1, y=1, traceorder="normal", font=dict(family="sans-serif", size=18, color="#000")),plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",clickmode="none")
 
 fig = go.Figure(data=data, layout=layout)
 
+# app layout
 app.layout = html.Div([
     html.Div(id="hidden-div", style={"display": "none"}),
     html.Div(
@@ -672,7 +679,7 @@ app.layout = html.Div([
     html.Div(id="extra-space",children=[],style={"height":"400px"})
 ])
 
-
+# function to update the figure when user input occurs
 @app.callback(
     Output("trajectory-graph", "figure"),
     [Input("start-x", "value"),
@@ -727,18 +734,6 @@ def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,
         def_seq_x_separate.append(inner_x)
         def_seq_y_separate.append(inner_y)
 
-    #o_marker_colors = ["rgb(200, 200, 255)"]
-    #d_marker_colors = ["rgb(255, 215, 0)"]
-    #for i in range(1, len(o_x)):
-    #    red_value = int(o_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
-    #    green_value = int(o_marker_colors[i-1].split(",")[1]) - 2
-    #    #blue_value = int(marker_colors[i-1].split(",")[2].split(")")[0]) + 10
-    #    o_marker_colors.append(f"rgb({red_value}, {green_value}, 255)")
-    #for i in range(1, len(d_x)):
-    #    red_value = int(d_marker_colors[i-1].split(",")[0].split("(")[1]) - 2
-    #    green_value = int(d_marker_colors[i-1].split(",")[1]) - 2
-    #    #blue_value = int(d_marker_colors[i-1].split(",")[2].split(")")[0]) -2
-    #    d_marker_colors.append(f"rgb({red_value}, {green_value}, 0)")
 
     oo_trace = go.Scatter(x=oo_x, y=oo_y, mode="markers", marker=dict(size=10,color = "#333333"), name="Original Offensive Player", showlegend=True, legendgroup="group1")
     od_trace = go.Scatter(x=od_x, y=od_y, mode="markers", marker=dict(size=10,color = "#003366"), name="Original Defensive Player", showlegend=True, legendgroup="group1")
@@ -874,7 +869,7 @@ def update_figure(start_x, start_y,index,los_x,plot_type,show_original,n_clicks,
     return fig
 
 
-
+# update the cluster figure when it is displayed
 @app.callback(
     Output("cluster-graph-1", "figure"),
     Output("cluster-graph-2", "figure"),
@@ -905,6 +900,7 @@ def update_cluster_figure(value):
         i+=1
     return cluster_figures[0],cluster_figures[1],cluster_figures[2],cluster_figures[3],cluster_figures[4],cluster_figures[5],cluster_figures[6],cluster_figures[7],{},{"display":"none"},{"display":"none"}
 
+# reset dropdown
 @app.callback(
     Output("cluster-center-dropdown","value"),
     [Input("cluster-dropdown","value")],
@@ -912,6 +908,7 @@ def update_cluster_figure(value):
 def reset_centerdrd(value_cluster):
     return None
 
+# set a sequence when selected
 @app.callback(
     Output("seq-index", "value"),
     [Input("cluster-center-dropdown","value"),
@@ -928,6 +925,7 @@ def set__seq(c_seq,playId,cluster,index,gameId):
     else:
         return index
 
+# reset dropdown
 @app.callback(
     Output("play-dropdown", "options"),
     Output("play-dropdown","style"),
@@ -944,6 +942,7 @@ def set_play_dropdown(value):
         play_drd_options.append({"label":row.playDescription,"value":row.playId})
     return play_drd_options,{},None,{}
 
+# get tab content
 @app.callback(
         Output("play-mode", "style"),
         Output("cluster-mode","style"),
