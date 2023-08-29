@@ -14,8 +14,8 @@ app = Dash(__name__,suppress_callback_exceptions=True,external_stylesheets=[dbc.
 app.title = "NFL Defensive Trajectory Prediction"
 
 my_dir = path.dirname(__file__)
-mongo_username = environ.get("MONGO_USERNAME")
-mongo_password = environ.get("MONGO_PASSWORD")
+mongo_username = "alejoesc2000"#environ.get("MONGO_USERNAME")
+mongo_password = "vVKYgj33xEjVu0Sp"#environ.get("MONGO_PASSWORD")
 mclient = MongoClient(f"mongodb+srv://{mongo_username}:{mongo_password}@cpsc502.wv2dsv5.mongodb.net/?retryWrites=true&w=majority")
 db = mclient.CPSC502
 cluster_col = db.Cluster
@@ -1085,4 +1085,4 @@ def display_click_data(n_clicks,clickData,o_start_x,o_start_y,index):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
